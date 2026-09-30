@@ -649,7 +649,7 @@
       }
       /* icons panel: centered, shifted right of orb center */
       .icons-panel {
-        padding: 0 0 0 220px !important;
+        padding: 0 0 0 184px !important;
         justify-content: center;
         align-items: center;
       }
@@ -1260,7 +1260,7 @@
         transition: transform 0.52s cubic-bezier(0.16,1,0.3,1) !important;
       }
       #panel-experience.node-active #ew-sphere-side {
-        transform: translate(-29%, -4%) scale(0.44) !important;
+        transform: translate(0, -37%) scale(0.4) !important;
         transform-origin: center center !important;
       }
       /* Default-state sphere labels: shrink so EXPERIMENTING fits its arc like OPERATOR / FOUNDER / SKILLS */
@@ -1286,12 +1286,12 @@
       }
       #panel-experience.node-active #ew-content-side {
         position: absolute !important;
-        top: 0 !important;
-        left: 42% !important;
+        top: 27% !important;
+        left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        width: 58% !important;
-        padding: 8px 12px 24px 8px !important;
+        width: 100% !important;
+        padding: 4px 16px 24px !important;
         overflow-y: auto !important;
         transform: translateX(0) !important;
       }
@@ -2408,6 +2408,10 @@ window._mobileGated = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || w
       font-variant-ligatures: none;
       -webkit-font-smoothing: none;
     }
+    /* phones: the longest rows (~47 columns) don't fit at the native 16px */
+    @media (max-width: 768px) {
+      #boot-terminal { font-size: 13px; line-height: 17px; }
+    }
 
     /* Standard VGA 16-colour palette: 7 light gray body, 15 white highlights,
        8 dark gray rules, 11 bright cyan for results. */
@@ -3152,7 +3156,7 @@ window.addEventListener('resize', () => {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
     const isDesktop = W > 768;
-    cx = isDesktop ? W * 0.42 : W * 0.30;
+    cx = isDesktop ? W * 0.42 : W * 0.30 - 18;   // phones: shifted with the icons (.icons-panel)
     cy = H / 2;
     cy = H / 2;
     R      = isDesktop ? 100 : 58;
@@ -5609,13 +5613,16 @@ function checkTrophy(key) {
   }
   @media (max-width: 768px) {
     #ver-modal-box {
-      width: min(360px, 90vw);
+      box-sizing: border-box;
+      width: min(360px, calc(100vw - 32px));
       height: auto;
-      max-height: 70vh;
+      max-height: 80vh;
       padding: 28px 22px;
+      scrollbar-width: none;   /* a few px of overflow from the ring shouldn't show a bar */
     }
     /* phones: no room around the ring for callouts yet */
     #ver-callouts, .ver-readout, #ver-activity { display: none; }
+    #ver-modal-box::-webkit-scrollbar { display: none; }
   }
 </style>
 
@@ -5696,7 +5703,7 @@ function checkTrophy(key) {
      three.min.js script tag up in <head>, same as every other WebGL bit on
      this page. Must load after that tag (it does — this sits near the end
      of body) so window.THREE already exists when ico.js runs. -->
-<script src="ico.js"></script>
+<script src="ico.js?v=20260930"></script>
 
 <script>
   // ── Status ───────────────────────────────────────────────────────────
@@ -5877,15 +5884,16 @@ function checkTrophy(key) {
 <!-- ring.js: the orbit ring around the iCO and the etched status badge.
      Classic script like ico.js (reuses the global THREE). Loads after the
      script above because it reads the status badge that script renders. -->
-<script src="etched.js"></script>
-<script src="ring.js"></script>
+<!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
+<script src="etched.js?v=20260930"></script>
+<script src="ring.js?v=20260930"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->
-<script src="eve-mesh.js"></script>
-<script src="menu-orbs.js"></script>
+<script src="eve-mesh.js?v=20260930"></script>
+<script src="menu-orbs.js?v=20260930"></script>
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
-<script src="message-popup.js"></script>
+<script src="message-popup.js?v=20260930"></script>
 
 </body>
 </html>

@@ -573,7 +573,7 @@
 
   let W = 0, H = 0;
   function fit() {
-    const w = hero.clientWidth, h = hero.clientHeight;
+    const w = cv.clientWidth, h = cv.clientHeight;   // the canvas, not the hero: on phones it's shorter
     if (!w || !h || (w === W && h === H)) return;
     W = w; H = h;
     renderer.setPixelRatio(DPR); renderer.setSize(W, H, false);
