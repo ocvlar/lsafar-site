@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Plasma Glass Button</title>
+<!--
+  PLASMA GLASS BUTTON — standalone reference copy of the site's component.
+
+  The CSS (.plasma-btn …) and the engine (mountPlasmaButton / setPlasmaButtonColor)
+  below are copied verbatim from index.html, so this page is the saved design:
+  open it directly (works over file://) to see every variant live.
+
+  Two looks:
+    1. Glass button  — the fbm plasma (same shader as the EXPERIENCE sphere)
+       sealed under frosted glass: .plasma-btn, with .is-compact (small pill)
+       or .is-circle (icon only). Markup:
+         <button class="plasma-btn is-compact" id="my-btn">
+           <canvas id="my-btn-canvas"></canvas>
+           <span class="label-plate"><span>Close</span></span>
+         </button>
+       then: mountPlasmaButton('my-btn', 'my-btn-canvas', {stretchDivisor: 1.4});
+
+    2. Etched cut    — no glass chrome: an icon cut into the panel's glass with
+       the plasma running inside the cut (the site's Me/Experience back button,
+       #panel-back). See .plasma-etched below: SVG draws the light lip, the dark
+       floor and a dim base glow; the canvas is the live plasma, CSS-masked to
+       the icon minus a band along its top (the cut's shadowed upper wall).
+
+  mountPlasmaButton(btnId, canvasId, opts) options:
+    colorMid, colorBright  plasma tint (hex); deep 0x030810 is fixed so every
+                           tint still reads as the same glass
+    brightnessMul          overall brightness multiplier (default 1)
+    stretchDivisor         how much a wide pill stretches the plasma (default 2.6)
+    spin                   fixed rest angle (radians)
+    threshold              where thin plasma fades out (default 0.07; lower
+                           = never fully clears; the etched cut uses -0.25)
+    scale                  noise frequency (default 0.62; higher = finer swirls;
+                           the etched cut uses 1.6)
+  setPlasmaButtonColor(canvasId, midHex, brightHex) eases a mounted button to a new tint.
+  The engine builds lazily on the button's first real size, pauses while the
+  button isn't displayed, and frees itself if the canvas leaves the DOM.
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Michroma&display=swap');
+
+  /* ── Page (not part of the component) ── */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #000;
+    color: rgba(200,225,255,0.9);
+    font-family: 'Share Tech Mono', monospace;
+    display: grid;
+    place-items: center;
+    padding: 32px 16px;
+    box-sizing: border-box;
+  }
+  .sheet {
+    width: min(760px, 100%);
+    background: rgba(18,18,22,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 20px;
+    padding: 36px 40px;
+    box-sizing: border-box;
+    display: grid;
+    gap: 28px;
+  }
+  h1 { margin: 0; font: 400 14px 'Michroma', sans-serif; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(184,200,222,0.86); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; }
+  .row h2 { flex-basis: 100%; margin: 0; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(140,175,220,0.65); font-weight: 400; }
+  .note { flex-basis: 100%; margin: 0; font-size: 12px; color: rgba(150,165,185,0.7); line-height: 1.5; }
+
+  /* ════════════════ COMPONENT: glass button (verbatim from index.html) ════════════════ */
+  .plasma-btn {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      cursor: pointer;
+      border: none;
+      appearance: none;
+      -webkit-appearance: none;
+      outline-offset: 4px;
+      background: rgba(10,16,32,0.38);
+      box-shadow:
+        0 10px 28px rgba(0,6,20,0.55),
+        0 1px 0 rgba(255,255,255,0.10) inset,
+        0 -1px 0 rgba(0,0,0,0.40) inset,
+        0 0 0 1px rgba(168,208,255,0.22) inset;
+      -webkit-tap-highlight-color: transparent;
+      transition: box-shadow 480ms cubic-bezier(.25,1,.5,1), scale 220ms cubic-bezier(.25,1,.5,1);
+    }
+    .plasma-btn canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+      z-index: 0;
+    }
+    /* Local contrast fix: frosts the plasma's brightness down before the
+       label ever sits on it, so it can't wash out under the text. */
+    .plasma-btn::before {
+      content: "";
+      position: absolute; inset: 0;
+      z-index: 1;
+      -webkit-backdrop-filter: blur(2.5px) brightness(0.92) saturate(1.25) contrast(1.05);
+      backdrop-filter: blur(2.5px) brightness(0.92) saturate(1.25) contrast(1.05);
+      background:
+        radial-gradient(150% 175% at 50% 55%, transparent 38%, rgba(0,4,14,0.18) 100%),
+        linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0) 40%);
+      pointer-events: none;
+    }
+    /* Fixed specular catch — real curved glass has one bright spot where
+       ambient light hits it, it doesn't travel. Screen-blended so it can
+       only brighten, never muddy the plasma's own color. */
+    .plasma-btn::after {
+      content: "";
+      position: absolute; inset: 0;
+      z-index: 1;
+      background: radial-gradient(60% 55% at 30% 12%, rgba(255,255,255,0.30), transparent 65%);
+      mix-blend-mode: screen;
+      opacity: 0.7;
+      transition: opacity 420ms ease;
+      pointer-events: none;
+    }
+    .plasma-btn:hover::after, .plasma-btn:focus-visible::after { opacity: 1; }
+    /* A second, LOCAL backdrop-filter hugging just the label/icon — its own
+       dim patch, feathered with a mask so it reads as a soft halo rather
+       than a chip glued on top of the glass. */
+    .plasma-btn .label-plate {
+      position: relative;
+      z-index: 2;
+      isolation: isolate;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.3em 0.8em;
+      border-radius: 999px;
+    }
+    .plasma-btn .label-plate::before {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      z-index: -1;
+      border-radius: inherit;
+      -webkit-backdrop-filter: blur(5px) brightness(0.56) saturate(1.05);
+      backdrop-filter: blur(5px) brightness(0.56) saturate(1.05);
+      background: rgba(0,4,14,0.16);
+      -webkit-mask-image: radial-gradient(closest-side, black 50%, transparent 100%);
+      mask-image: radial-gradient(closest-side, black 50%, transparent 100%);
+      pointer-events: none;
+    }
+    .plasma-btn .label-plate span {
+      /* tight black contact-shadow first — the part that actually
+         guarantees contrast on any hue/brightness — brand glow on top */
+      text-shadow:
+        0 1px 1px rgba(0,0,0,0.95),
+        0 0 3px rgba(0,3,12,0.9),
+        0 0 13px rgba(140,190,255,0.55),
+        0 0 28px rgba(70,140,255,0.30);
+    }
+    .plasma-btn .label-plate svg {
+      display: block;
+      filter:
+        drop-shadow(0 1px 1px rgba(0,0,0,0.95))
+        drop-shadow(0 0 3px rgba(0,3,12,0.9))
+        drop-shadow(0 0 9px rgba(140,190,255,0.55));
+    }
+    .plasma-btn:hover, .plasma-btn:focus-visible {
+      box-shadow:
+        0 14px 34px rgba(6,20,50,0.65),
+        0 0 26px rgba(58,144,255,0.26),
+        0 1px 0 rgba(255,255,255,0.16) inset,
+        0 -1px 0 rgba(0,0,0,0.40) inset,
+        0 0 0 1px rgba(168,208,255,0.55) inset;
+      scale: 1.015;
+    }
+    .plasma-btn:active { scale: 0.97; }
+    .plasma-btn:focus-visible { outline: 1px solid rgba(106,180,255,0.8); }
+
+    /* Small pill — Close (yap modal), the SKILLS "yap" trigger.
+       Sized like the site's other small tracked-caps chips (14px, 0.2em
+       tracking), never a full CTA-sized pill. */
+    .plasma-btn.is-compact {
+      padding: 0.5rem 1.3rem;
+      font-size: 14px;
+      letter-spacing: 0.2em;
+      font-family: 'Share Tech Mono', monospace;
+      text-transform: uppercase;
+      color: #eef6ff;
+      border-radius: 999px;
+    }
+    /* Circle — icon only (the site's old back button was 34×34). */
+    .plasma-btn.is-circle {
+      border-radius: 50%;
+      color: #eef6ff; /* the arrow svg fills with currentColor */
+    }
+    .plasma-btn.is-circle .label-plate {
+      padding: 0.55em;
+    }
+
+  /* ════════════════ COMPONENT: etched cut (from index.html's .panel-back) ════════════════ */
+  .plasma-etched {
+    position: relative; z-index: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: none;
+    border: none;
+    appearance: none; -webkit-appearance: none;
+    cursor: pointer;
+  }
+  /* a faint spill of the cut's light on the glass, breathing slowly */
+  .plasma-etched::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(74,106,154,0.12), rgba(74,106,154,0) 60%);
+    animation: plasmaEtchedBreathe 2.4s ease-in-out infinite;
+  }
+  @keyframes plasmaEtchedBreathe {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+  }
+  .plasma-etched .plasma-etched-icon { display: inline-flex; transition: transform 0.2s; }
+  /* no blur filters on the icon: sharp cut edges, full plasma contrast */
+  .plasma-etched svg {
+    display: block;
+    overflow: visible;
+  }
+  .plasma-etched .etch-lip  { fill: rgba(138,170,206,0.32); transition: fill 0.2s ease; }
+  .plasma-etched .etch-well { fill: rgba(3,8,16,0.94); }
+  /* faint fallback only (WebGL off) — stronger washes the plasma flat */
+  .plasma-etched .etch-face { fill: url(#plasma-etched-lit); opacity: 0.2; }
+  .plasma-etched:hover .etch-lip,
+  .plasma-etched:focus-visible .etch-lip { fill: rgba(170,200,235,0.5); }
+  .plasma-etched:active .plasma-etched-icon { transform: scale(0.94); }
+  /* The plasma fills only the cut, minus a band along its top edge: the mask
+     is the icon intersected with itself shifted 0.75 units down. */
+  .plasma-etched canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    pointer-events: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3CclipPath id='c'%3E%3Cpath d='M5 1H4L0 5L4 9H5V6H11C12.6569 6 14 7.34315 14 9C14 10.6569 12.6569 12 11 12H4V14H11C13.7614 14 16 11.7614 16 9C16 6.23858 13.7614 4 11 4H5V1Z'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23c)'%3E%3Cpath transform='translate(0 0.75)' d='M5 1H4L0 5L4 9H5V6H11C12.6569 6 14 7.34315 14 9C14 10.6569 12.6569 12 11 12H4V14H11C13.7614 14 16 11.7614 16 9C16 6.23858 13.7614 4 11 4H5V1Z'/%3E%3C/g%3E%3C/svg%3E") center / 22px 22px no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3CclipPath id='c'%3E%3Cpath d='M5 1H4L0 5L4 9H5V6H11C12.6569 6 14 7.34315 14 9C14 10.6569 12.6569 12 11 12H4V14H11C13.7614 14 16 11.7614 16 9C16 6.23858 13.7614 4 11 4H5V1Z'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23c)'%3E%3Cpath transform='translate(0 0.75)' d='M5 1H4L0 5L4 9H5V6H11C12.6569 6 14 7.34315 14 9C14 10.6569 12.6569 12 11 12H4V14H11C13.7614 14 16 11.7614 16 9C16 6.23858 13.7614 4 11 4H5V1Z'/%3E%3C/g%3E%3C/svg%3E") center / 22px 22px no-repeat;
+  }
+  @media (prefers-reduced-motion: reduce) { .plasma-etched::before { animation: none; } }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <h1>Plasma glass button</h1>
+
+  <section class="row">
+    <h2>Compact pill · .plasma-btn.is-compact</h2>
+    <button class="plasma-btn is-compact" id="demo-close">
+      <canvas id="demo-close-canvas"></canvas>
+      <span class="label-plate"><span>Close</span></span>
+    </button>
+    <button class="plasma-btn is-compact" id="demo-send" style="padding:3px 12px;font-size:12px;letter-spacing:0.1em;">
+      <canvas id="demo-send-canvas"></canvas>
+      <span class="label-plate"><span>Send</span></span>
+    </button>
+    <p class="note">The site's Close and Send buttons (small size: padding 3px 12px, 12px type).</p>
+  </section>
+
+  <section class="row">
+    <h2>Circle · .plasma-btn.is-circle</h2>
+    <button class="plasma-btn is-circle" id="demo-circle" style="width:34px;height:34px;" aria-label="Back">
+      <canvas id="demo-circle-canvas"></canvas>
+      <span class="label-plate">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 1H4L0 5L4 9H5V6H11C12.6569 6 14 7.34315 14 9C14 10.6569 12.6569 12 11 12H4V14H11C13.7614 14 16 11.7614 16 9C16 6.23858 13.7614 4 11 4H5V1Z" fill="currentColor"/></svg>
+      </span>
+    </button>
+    <p class="note">The original Me/Experience back button, before it became the etched cut below.</p>
+  </section>
+
+  <section class="row">
+    <h2>Retint · setPlasmaButtonColor()</h2>
+    <button class="plasma-btn is-compact" id="demo-tint">
+      <canvas id="demo-tint-canvas"></canvas>
+      <span class="label-plate"><span>Click to retint</span></span>
+    </button>
+    <p class="note">Eases between the site blue, the EXPERIENCE steel and a violet.</p>
+  </section>
+
+  <section class="row">
+    <h2>Etched cut · .plasma-etched</h2>
+    <button class="plasma-etched" id="demo-etched" aria-label="Back">
+      <span class="plasma-etched-icon">
+        <svg width="22" height="22" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <path id="plasma-etched-shape" d="M5 1H4L0 5L4 9H5V6H11C12.6569 6 14 7.34315 14 9C14 10.6569 12.6569 12 11 12H4V14H11C13.7614 14 16 11.7614 16 9C16 6.23858 13.7614 4 11 4H5V1Z"/>
+            <linearGradient id="plasma-etched-lit" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#8aaace"/>
+              <stop offset="1" stop-color="#4a6a9a"/>
+            </linearGradient>
+            <clipPath id="plasma-etched-clip"><use href="#plasma-etched-shape"/></clipPath>
+          </defs>
+          <use class="etch-lip" href="#plasma-etched-shape" transform="translate(0 0.6)"/>
+          <g clip-path="url(#plasma-etched-clip)">
+            <rect class="etch-well" x="-1" y="-1" width="18" height="18"/>
+            <use class="etch-face" href="#plasma-etched-shape" transform="translate(0 0.75)"/>
+          </g>
+        </svg>
+      </span>
+      <canvas id="demo-etched-canvas"></canvas>
+    </button>
+    <p class="note">The current Me/Experience back button: the icon cut into the glass with the EXPERIENCE plasma (mid 0x4a6a9a, bright 0x8aaace) running inside: scale 1.6 for fine filaments in a small icon, threshold -0.25 so it never goes fully dark but keeps its contrast. To etch another icon, swap the path in the SVG and in both mask URLs.</p>
+  </section>
+</main>
+
+<script>
+/* ════════════════ COMPONENT: engine (verbatim from index.html) ════════════════ */
+(function() {
+  if (!window.THREE) return;
+
+  const noiseGLSL = `
+    vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+    vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
+    vec4 permute(vec4 x){return mod289(((x*34.)+1.)*x);}
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+    float snoise(vec3 v){
+      const vec2 C=vec2(1./6.,1./3.);const vec4 D=vec4(0.,.5,1.,2.);
+      vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
+      vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.-g;
+      vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
+      vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
+      i=mod289(i);
+      vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
+      float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
+      vec4 j=p-49.*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.*x_);
+      vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.-abs(x)-abs(y);
+      vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
+      vec4 s0=floor(b0)*2.+1.;vec4 s1=floor(b1)*2.+1.;vec4 sh=-step(h,vec4(0.));
+      vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+      vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
+      vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+      p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+      vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);m=m*m;
+      return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+    }
+    float fbm(vec3 p){float t=0.,a=.5,f=1.;for(int i=0;i<3;i++){t+=snoise(p*f)*a;a*=.5;f*=2.;}return t;}
+  `;
+
+  const plasmaVS = `varying vec3 vP,vN,vVP;void main(){vP=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vVP=-mv.xyz;gl_Position=projectionMatrix*mv;}`;
+  const plasmaFS = `uniform float uTime,uScale,uBrightness,uThreshold;uniform vec3 uColorDeep,uColorMid,uColorBright;varying vec3 vP,vN,vVP;${noiseGLSL}void main(){vec3 p=vP*uScale;vec3 q=vec3(fbm(p+vec3(0.,uTime*.05,0.)),fbm(p+vec3(5.2,1.3,2.8)+uTime*.05),fbm(p+vec3(2.2,8.4,.5)-uTime*.02));float d=fbm(p+2.*q);float t=(d+.4)*.8;float alpha=smoothstep(uThreshold,.7,t);vec3 color=mix(uColorDeep,uColorMid,smoothstep(uThreshold,.5,t));color=mix(color,uColorBright,smoothstep(.5,.8,t));color=mix(color,vec3(0.86,0.94,1.0),smoothstep(.88,1.15,t));float depth=(dot(normalize(vN),normalize(vVP))+1.)*.5;gl_FragColor=vec4(color*uBrightness,alpha*(.02+.98*depth));}`;
+
+  // canvasId -> {mid: THREE.Color, bright: THREE.Color}. Lets an already-
+  // mounted button (like the long-lived Directed Works arrows) be retinted
+  // later by window.setPlasmaButtonColor() — see mountPlasmaButton().
+  window._plasmaButtonColors = window._plasmaButtonColors || {};
+
+  function mountPlasmaButton(btnId, canvasId, opts){
+    opts = opts || {};
+    const btn = document.getElementById(btnId);
+    const canvas = document.getElementById(canvasId);
+    if (!btn || !canvas || canvas.dataset.plasmaMounted) return;
+    canvas.dataset.plasmaMounted = '1';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const yPhase = opts.spin || 0;
+    const stretchDivisor = opts.stretchDivisor || 2.6;
+    const brightnessMul = opts.brightnessMul || 1;
+
+    let built = false, W = 0, H = 0;
+    let renderer, scene, camera, group, plasmaMat, plasmaGeo, stretchFor, ro;
+
+    // Declared here (not inside build()) so window.setPlasmaButtonColor can
+    // retarget a button's tint even before it's actually built — e.g. the
+    // Directed Works arrows get colored for whichever project is showing
+    // the moment the modal opens, which can happen before their canvas
+    // has a real size yet.
+    const targetMid = new THREE.Color(opts.colorMid || 0x3d6098);
+    const targetBright = new THREE.Color(opts.colorBright || 0x9fc2ec);
+    window._plasmaButtonColors[canvasId] = { mid: targetMid, bright: targetBright };
+
+    function build(){
+      built = true;
+      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'low-power'});
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(W, H, false);
+      renderer.setClearColor(0x000000, 0);
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 10);
+      const baseZoom = 1.62;
+      camera.position.set(0, 0, baseZoom);
+
+      group = new THREE.Group();
+      scene.add(group);
+
+      // A pill is much wider than tall — stretch the plasma body itself to
+      // the button's shape so the noise field spans corner to corner
+      // instead of sitting as a circle in the middle of a wide capsule.
+      stretchFor = aspect => Math.max(1, aspect / stretchDivisor);
+      group.scale.x = stretchFor(W/H);
+
+      // uColorDeep stays fixed across every button — it's the shadow/depth
+      // end of the gradient, and keeping it constant is what makes
+      // differently-tinted buttons still read as the same glass material.
+      // uColorMid/uColorBright are the part callers can retint (see
+      // window.setPlasmaButtonColor below), defaulting to the site's blue.
+      plasmaMat = new THREE.ShaderMaterial({
+        uniforms:{
+          uTime:{value: Math.random()*40},
+          // Noise frequency: higher = finer swirls (opts.scale; the etched
+          // #panel-back uses more so real filaments move through a small icon).
+          uScale:{value: opts.scale || 0.62},
+          uBrightness:{value:1.55 * brightnessMul},
+          // Where thin plasma fades to nothing. Lower = never fully clears
+          // (opts.threshold; the etched #panel-back uses this so its cut is
+          // never left dark).
+          uThreshold:{value: opts.threshold !== undefined ? opts.threshold : 0.07},
+          uColorDeep:{value:new THREE.Color(0x030810)},
+          uColorMid:{value:targetMid.clone()},
+          uColorBright:{value:targetBright.clone()}
+        },
+        vertexShader:plasmaVS, fragmentShader:plasmaFS,
+        transparent:true, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false
+      });
+      plasmaGeo = new THREE.SphereGeometry(1, 80, 80);
+      group.add(new THREE.Mesh(plasmaGeo, plasmaMat));
+
+      let hot = 0, hotTarget = 0;
+      let tiltX = 0, tiltY = 0, tiltTX = 0, tiltTY = 0;
+
+      function frame(){
+        // The EXPERIENCE wheel rebuilds its content via innerHTML each time
+        // a section reopens, so buttons living inside it (the SKILLS "yap"
+        // trigger, the OPERATOR instagram icon) get a brand-new canvas node
+        // every time — the old one, and its render loop, would otherwise
+        // just keep running forever, invisible. Stop and free it instead.
+        if (!canvas.isConnected) {
+          renderer.dispose(); plasmaMat.dispose(); plasmaGeo.dispose();
+          if (ro) ro.disconnect();
+          delete window._plasmaButtonColors[canvas.id];
+          return;
+        }
+        requestAnimationFrame(frame);
+        // Nothing to draw while the button isn't displayed (its panel or
+        // modal is closed) — skip the render until it's back.
+        if (btn.offsetParent === null) return;
+        hot += (hotTarget - hot) * 0.08;
+        tiltX += (tiltTX - tiltX) * 0.07;
+        tiltY += (tiltTY - tiltY) * 0.07;
+
+        plasmaMat.uniforms.uTime.value += (1/60) * (0.5 + hot*0.35);
+        plasmaMat.uniforms.uBrightness.value = (1.55 + hot*0.6) * brightnessMul;
+        // Ease toward whatever color window.setPlasmaButtonColor() last set,
+        // rather than cutting instantly — a re-tint should feel like the
+        // glass itself shifting, not a hard swap.
+        plasmaMat.uniforms.uColorMid.value.lerp(targetMid, 0.035);
+        plasmaMat.uniforms.uColorBright.value.lerp(targetBright, 0.035);
+
+        // No idle auto-spin: the noise already churns via uTime, so
+        // rotation only answers to cursor tilt plus a fixed rest angle.
+        group.rotation.y = yPhase + tiltY;
+        group.rotation.x = tiltX;
+        camera.position.z = baseZoom - hot*0.10;
+
+        renderer.render(scene, camera);
+      }
+      if(reduceMotion){
+        renderer.render(scene, camera);
+      } else {
+        frame();
+      }
+
+      btn.addEventListener('pointerenter', ()=>{ hotTarget = 1; });
+      btn.addEventListener('pointerleave', ()=>{ hotTarget = 0; tiltTX = 0; tiltTY = 0; });
+      btn.addEventListener('pointermove', (e)=>{
+        const r = btn.getBoundingClientRect();
+        const nx = (e.clientX - r.left)/r.width * 2 - 1;
+        const ny = (e.clientY - r.top)/r.height * 2 - 1;
+        tiltTY = nx*0.35;
+        tiltTX = -ny*0.25;
+      });
+    }
+
+    // Lazy-build on the first real size instead of requiring every call
+    // site to know whether its button is visible yet — this is what lets
+    // every instance mount the same way whether it's sitting in the open
+    // (#panel-back) or inside a display:none modal/panel that hasn't been
+    // opened yet (everything else).
+    ro = new ResizeObserver(()=>{
+      W = btn.clientWidth; H = btn.clientHeight;
+      if (!W || !H) return;
+      if (!built) { build(); return; }
+      renderer.setSize(W, H, false);
+      camera.aspect = W/H;
+      camera.updateProjectionMatrix();
+      group.scale.x = stretchFor(W/H);
+    });
+    ro.observe(btn);
+  }
+  window.mountPlasmaButton = mountPlasmaButton;
+  // Retints an already-mounted button's plasma — the button's own frame()
+  // loop eases the actual uniforms toward these new targets, so this just
+  // records where to ease *to*. Safe to call before the button is visible.
+  window.setPlasmaButtonColor = function(canvasId, midHex, brightHex){
+    const entry = window._plasmaButtonColors[canvasId];
+    if (!entry) return;
+    entry.mid.set(midHex);
+    entry.bright.set(brightHex);
+  };
+
+  window.mountPlasmaButton = mountPlasmaButton;
+})();
+
+/* ── Page demos ── */
+document.addEventListener('DOMContentLoaded', () => {
+  mountPlasmaButton('demo-close', 'demo-close-canvas', {stretchDivisor: 1.4});
+  mountPlasmaButton('demo-send', 'demo-send-canvas', {stretchDivisor: 1.4});
+  mountPlasmaButton('demo-circle', 'demo-circle-canvas', {brightnessMul: 0.65});
+  mountPlasmaButton('demo-tint', 'demo-tint-canvas', {stretchDivisor: 1.4});
+  mountPlasmaButton('demo-etched', 'demo-etched-canvas', {colorMid: 0x4a6a9a, colorBright: 0x8aaace, brightnessMul: 1.3, threshold: -0.25, scale: 1.6});
+
+  const tints = [[0x4a6a9a, 0x8aaace], [0x5a3fb0, 0xb7a3e5], [0x3d6098, 0x9fc2ec]];
+  let t = 0;
+  document.getElementById('demo-tint').addEventListener('click', () => {
+    const [mid, bright] = tints[t++ % tints.length];
+    setPlasmaButtonColor('demo-tint-canvas', mid, bright);
+  });
+});
+</script>
+</body>
+</html>
