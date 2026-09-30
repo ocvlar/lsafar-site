@@ -1014,6 +1014,10 @@
       pointer-events: none;
     }
     .plasma-btn:hover::after, .plasma-btn:focus-visible::after { opacity: 1; }
+    /* the phone gate's TAP TO ENTER: SEND's look, a size up */
+    .plasma-btn.tap-enter { padding: 0.95rem 2.3rem; border-radius: 999px; font: 400 11px/1 'Michroma', 'Share Tech Mono', sans-serif;
+      letter-spacing: 0.32em; text-transform: uppercase; color: #eef6ff; }
+    .plasma-btn.tap-enter .label-plate span { padding-left: 0.32em; }
     /* A second, LOCAL backdrop-filter hugging just the label/icon — its own
        dim patch, feathered with a mask so it reads as a soft halo rather
        than a chip glued on top of the glass. */
@@ -1735,16 +1739,20 @@
   align-items:center; justify-content:center;
   flex-direction:column; gap:40px;
 ">
-  <!-- Subtle label -->
+  <!-- Subtle label, etched like the clock -->
   <div style="
-    font-family:'Share Tech Mono',monospace;
-    font-size:11px;
+    font-family:'Michroma','Share Tech Mono',sans-serif;
+    font-size:9px;
     letter-spacing:0.35em;
-    color:rgba(80,130,200,0.4);
+    padding-left:0.35em;
+    color:var(--etch-face);
+    opacity:0.55;
+    text-shadow:var(--etch-cut);
     text-transform:uppercase;
   ">ECHO OS v0.1a</div>
 
-  <button id="orb-tap-btn" class="shiny-cta"><span>TAP TO ENTER</span></button>
+  <!-- the plasma glass button, like the Message popup's SEND (same engine and tint) -->
+  <button id="orb-tap-btn" class="plasma-btn tap-enter" type="button"><canvas id="orb-tap-canvas"></canvas><span class="label-plate"><span>Tap to enter</span></span></button>
 </div>
 
 <style>
@@ -2408,9 +2416,18 @@ window._mobileGated = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || w
       font-variant-ligatures: none;
       -webkit-font-smoothing: none;
     }
-    /* phones: the longest rows (~47 columns) don't fit at the native 16px */
+    /* phones: the rules are the widest rows (54 columns of an 8x16 font, so
+       27em); size the font so they span the screen between equal 20px
+       margins, never above the native 16px */
     @media (max-width: 768px) {
-      #boot-terminal { font-size: 13px; line-height: 17px; }
+      /* and the whole screen, all 40 rows once READY shows, sits centred
+         top to bottom, so it types down from a balanced margin instead of
+         leaving the bottom third empty */
+      #boot-terminal {
+        padding: max(28px, calc((100dvh - 40 * 1.32em) / 2)) 20px 28px !important;
+        font-size: min(16px, calc((100vw - 40px) / 27));
+        line-height: 1.32em;
+      }
     }
 
     /* Standard VGA 16-colour palette: 7 light gray body, 15 white highlights,
@@ -3841,6 +3858,16 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     background:#000;
   }
   .dc-video video { width:100%; height:100%; object-fit:cover; display:block; }
+  /* TENSAY on short desktop windows (e.g. 1280x720): the YouTube card grew up
+     over the carousel's caption and the tall video overflowed. Sized against
+     the page's height (container units), both give way only when there's no
+     room: from ~1366x768 up they're the original 460px / 580px. The caption
+     ends ~375px down the page, the card sits 28px off the bottom. */
+  @media (min-width: 769px) {
+    #dc-page-tensay { container-type: size; }
+    #dc-page-tensay .dc-video { height: min(580px, calc(100cqh - 80px)); }
+    #dc-page-tensay > #dc-yt { width: min(460px, 60%, calc((100cqh - 403px) * 16 / 9)) !important; }
+  }
   .dc-title-wrap { position:relative; width:140px; height:520px; flex-shrink:0; align-self:center; }
   .dc-title {
     position:absolute; top:50%; left:50%;
@@ -5151,6 +5178,7 @@ function checkTrophy(key) {
     // The Directed Works arrows are plain etched icons (no plasma) — see the
     // .dc-nav rules near their markup — so they don't mount here.
     mountPlasmaButton('yap-modal-close', 'yap-modal-close-canvas', {stretchDivisor: 1.4});
+    mountPlasmaButton('orb-tap-btn', 'orb-tap-canvas', { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff });   // SEND's tint
   });
 })();
 
