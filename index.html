@@ -3876,22 +3876,70 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     font-size-adjust: 0.48;
   }
   @media (max-width: 768px) {
-    .dc-title-wrap { display:none; }
     #directed-modal > div {
-      width: min(360px, 90vw) !important;
-      max-height: 70vh !important;
+      width: calc(100vw - 24px) !important;
+      height: 84vh !important;
+      max-height: 84vh !important;
     }
-    #directed-modal .directed-body {
-      padding: 30px 16px !important;
-      flex-direction: column !important;
+    /* Phones: the desktop collages (every piece placed by hand in px) become a
+       scrolling feed per project: its title on top, then each photo / video
+       full width in order, the unmute / YouTube / Instagram icons staying on
+       their video. The px width × height of each piece becomes its
+       aspect-ratio (script below), and tall ones are capped at 60vh. */
+    #directed-modal .dc-page {
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      flex-direction: column; gap: 14px;
+      padding: 22px 16px 28px;
+      scrollbar-width: none;
     }
-    .dc-carousel { width:280px; height:180px; }
+    #directed-modal .dc-page::-webkit-scrollbar { display: none; }
+    #directed-modal .dc-page > :not(style) {
+      position: relative !important;
+      left: auto !important; right: auto !important; top: auto !important; bottom: auto !important;
+      transform: none !important;
+      width: 100% !important; max-width: 100% !important;
+      height: auto !important; max-height: 60vh;
+      margin: 0 !important;
+      flex-shrink: 0;
+      z-index: auto !important;
+    }
+    #directed-modal .dc-page > .dc-gal-img { opacity: 1 !important; }
+    /* titles: horizontal, first, centred */
+    #directed-modal .dc-title-wrap { display: block; width: auto; height: auto; align-self: stretch; }
+    #directed-modal .dc-page > .dc-title-wrap,
+    #directed-modal .dc-page > div:has(> .dc-title-main) {
+      order: -1; max-height: none; text-align: center;
+      display: flex !important; flex-direction: column; align-items: center; padding: 4px 0 2px;
+    }
+    #directed-modal .dc-title { position: static !important; transform: none !important; text-align: center; }
+    #directed-modal .dc-page .dc-title-main { font-size: 24px !important; letter-spacing: 0.12em !important; white-space: normal !important; line-height: 1.2 !important; }
+    #directed-modal .dc-page .dc-title-sub { font-size: 12px !important; margin-top: 8px !important; white-space: normal !important; }
+    /* TENSAY: the page scrolls as one (carousel, video, then the YouTube card) */
+    #dc-page-tensay .directed-body {
+      overflow: visible !important; flex: none !important;
+      padding: 8px 0 0 !important; flex-direction: column !important; align-items: center !important; gap: 18px !important;
+      max-height: none;
+    }
+    #dc-page-tensay .dc-title-wrap { order: -1; }
+    #dc-page-tensay .dc-title-main { font-size: 30px !important; }
+    #dc-page-tensay > #dc-yt { aspect-ratio: 16 / 9; }
+    .dc-carousel { width:280px; height:180px; margin-bottom: 40px; }   /* room for its caption */
     .dc-slide { width:90px; height:128px; }
     .dc-slide.dc-left  { transform:translate(calc(-50% - 76px),-50%) scale(.75) rotateY(20deg); }
     .dc-slide.dc-right { transform:translate(calc(-50% + 76px),-50%) scale(.75) rotateY(-20deg); }
     .dc-video { width:100%; height:200px; }
   }
 </style>
+<script>
+  // WORK on phones: the collage pieces are sized in px for desktop; keep each
+  // one's shape when the phone layout stacks them full width
+  if (matchMedia('(max-width: 768px)').matches) addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#directed-modal .dc-page > :not(style)').forEach(el => {
+      const st = el.style;
+      if (!st.aspectRatio && /px$/.test(st.width) && /px$/.test(st.height)) st.aspectRatio = parseFloat(st.width) + ' / ' + parseFloat(st.height);
+    });
+  });
+</script>
 <div id="directed-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;backdrop-filter:blur(2px);" onclick="hideDirected()">
   <div style="position:relative;width:min(1100px,95vw);height:min(680px,88vh);background:rgba(18,18,22,0.55);backdrop-filter:blur(32px) saturate(120%) brightness(0.85);-webkit-backdrop-filter:blur(32px) saturate(120%) brightness(0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;overflow:hidden;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
     <div class="dc-page" id="dc-page-tensay" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
@@ -5620,8 +5668,25 @@ function checkTrophy(key) {
       padding: 28px 22px;
       scrollbar-width: none;   /* a few px of overflow from the ring shouldn't show a bar */
     }
-    /* phones: no room around the ring for callouts yet */
-    #ver-callouts, .ver-readout, #ver-activity { display: none; }
+    /* phones: no room around the ring for leader lines, so the details sit
+       as a 2x2 grid under the ring (RENDER · LOCATION / DISTANCE · NODE) and
+       the live log above it; ring.js only moves the readouts while the lines
+       show, so here they stay in the flow */
+    #ver-callouts { display: none; }
+    #ver-modal-box { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; align-content: start; align-items: start; }
+    /* ring.js leaves room above the ring for a corner log; here the log has its own row */
+    #ver-modal-content { grid-column: 1 / -1; margin-top: -34px; }
+    #ver-activity { position: static; order: -1; grid-column: 1 / -1; width: auto; min-width: 0; gap: 10px; }
+    #ver-activity .act-log { width: 100%; }
+    #ver-activity .act-row { gap: 8px; font-size: 7.5px; }
+    #ver-activity .act-l { width: 5.4em; }
+    .ver-readout { position: static; transform: none !important; white-space: normal; gap: 5px; min-width: 0;
+      padding-top: 10px; border-top: 1px solid rgba(150,200,245,0.12); }
+    .ver-readout.is-left, .ver-readout.is-right { align-items: flex-start; text-align: left; }
+    .ver-readout[data-angle="135"] { order: 1; }
+    .ver-readout[data-angle="45"]  { order: 2; }
+    .ver-readout[data-angle="225"] { order: 3; }
+    .ver-readout[data-angle="315"] { order: 4; }
     #ver-modal-box::-webkit-scrollbar { display: none; }
   }
 </style>
