@@ -562,6 +562,7 @@
   // together; below 60% the ring hugs the iCO tighter instead of shrinking it
   // further. #ver-ico-wrap's margins grow to hold the ring, so it never
   // spills out of the popup box and causes scrolling.
+  const PHONE = matchMedia('(max-width: 768px)');
   function resize() {
     const d2r = THREE.MathUtils.degToRad;
     const cs = getComputedStyle(box);
@@ -590,6 +591,9 @@
       k = 0.6;
       ringPx = Math.max(ICO * k * 1.6, Math.min(S.size * ICO * k, (availW - 32) / 1.14, (availH - 24) / fH));
     }
+    // phones (Status D): the iCO and ring a size smaller, leaving room around
+    // the ring for the readings on their leaders
+    if (PHONE.matches) { k *= 0.78; ringPx *= 0.78; }
     const icoPx = ICO * k;
     wrap.style.width = wrap.style.height = icoPx + 'px';
     const wpp = 2 * R / ringPx; // world units per CSS px at the iCO's depth
@@ -845,8 +849,10 @@
       let nx = -ty, ny = tx;                 // normal…
       if (nx * (pA.x - pC.x) + ny * (pA.y - pC.y) < 0) { nx = -nx; ny = -ny; } // …pointing outward
       const sx = pA.x + nx * co.tubePx, sy = pA.y + ny * co.tubePx;         // tube's outer surface
-      const ex = sx + nx * c.tick, ey = sy + ny * c.tick;                 // out from the ring
-      const hx = ex + c.dx * c.run;                                       // elbow run to the label
+      // phones (Status D): a short tick and run, like desktop's shape at the smaller size
+      const tick = PHONE.matches ? 9 : c.tick, run = PHONE.matches ? 40 : c.run;
+      const ex = sx + nx * tick, ey = sy + ny * tick;                     // out from the ring
+      const hx = ex + c.dx * run;                                         // elbow run to the label
       const d = `M${sx.toFixed(1)} ${sy.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}H${hx.toFixed(1)}`;
       if (d === c.d) continue; // ring hasn't moved: leave everything alone
       c.d = d;
@@ -861,13 +867,20 @@
       const path3 = [jw, ew, hw];
       // same on-screen thickness for every leader: front joints are nearer
       // the camera, so their tubes get a proportionally thinner radius
-      const r = LEADER_R * (camera.position.distanceTo(jw) / D);
+      const r = LEADER_R * (PHONE.matches ? 0.75 : 1) * (camera.position.distanceTo(jw) / D);
       setLeaderGeo(c.glassGeo, path3, r);
       setLeaderGeo(c.glowGeo, path3, r * 0.78);
       setLeaderGeo(c.coreGeo, path3, r * 0.26);
       // anchored by the edge facing the line and centered on it, in % of the
       // label's own size, so labels whose text changes (RENDER's fps, the
       // location arriving) stay clear of the line without re-measuring
+      // phones: the reading sits on the run's outer end and reads inward, above
+      // the line for the upper joints and below it for the lower ones (Status D)
+      if (PHONE.matches) {
+        const up = ey < pC.y;
+        c.el.style.transform = `translate(${hx.toFixed(1)}px, ${ey.toFixed(1)}px) translate(${c.dx > 0 ? -100 : 0}%, ${up ? 'calc(-100% - 5px)' : '5px'})`;
+        continue;
+      }
       const lx = c.dx > 0 ? hx + GAP : hx - GAP;
       c.el.style.transform = `translate(${lx.toFixed(1)}px, ${ey.toFixed(1)}px) translate(${c.dx > 0 ? 0 : -100}%, -50%)`;
     }
@@ -881,7 +894,8 @@
   const roDevice = box.querySelector('[data-ro="device"]');
   const roDevice2 = box.querySelector('[data-ro="device2"]');
   function paintNode() {
-    if (roNodeState) roNodeState.textContent = navigator.onLine === false ? 'Node offline' : 'Node connected';
+    // phones: just "Node" (Status D)
+    if (roNodeState) roNodeState.textContent = navigator.onLine === false ? 'Node offline' : PHONE.matches ? 'Node' : 'Node connected';
     if (roDevice) roDevice.textContent = [node.os, node.browser].filter(Boolean).join(' · ') || 'Unknown node';
     if (roDevice2) roDevice2.textContent = [node.screen, node.cores].filter(Boolean).join(' · ');
   }

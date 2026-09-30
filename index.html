@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script>
+    // iPhone/iPad zoom the page into any focused field under 16px (the Message popup's
+    // FROM and message line); maximum-scale stops that there, and Safari still lets
+    // people pinch-zoom. Other devices keep the plain viewport.
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+      document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+  </script>
   <title>LS</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -1014,10 +1021,49 @@
       pointer-events: none;
     }
     .plasma-btn:hover::after, .plasma-btn:focus-visible::after { opacity: 1; }
-    /* the phone gate's TAP TO ENTER: SEND's look, a size up */
+    @media (hover: none) { .plasma-btn:hover:not(:focus-visible)::after { opacity: 0.7; } }   /* a tap isn't a hover */
+    /* Phones: the frost over the plasma keeps its tone but not its blur. Desktop
+       Chrome never blurs the plasma canvas through it (so the filaments stay
+       crisp there); phone browsers do, which smeared the plasma soft. */
+    @media (hover: none) {
+      .plasma-btn::before {
+        -webkit-backdrop-filter: brightness(0.92) saturate(1.25) contrast(1.05);
+        backdrop-filter: brightness(0.92) saturate(1.25) contrast(1.05);
+      }
+      /* the label, a touch dimmer so it sits in the glass instead of blazing
+         on it: softer white, a gentler glow, a slightly deeper patch behind */
+      .plasma-btn .label-plate::before { background: rgba(0,4,14,0.3); }
+      .plasma-btn .label-plate span {
+        color: rgba(214,228,244,0.86);
+        text-shadow:
+          0 1px 1px rgba(0,0,0,0.95),
+          0 0 3px rgba(0,3,12,0.9),
+          0 0 9px rgba(140,190,255,0.28);
+      }
+    }
+    /* the phone gate's ENTER: SEND's look, a size up */
     .plasma-btn.tap-enter { padding: 0.95rem 2.3rem; border-radius: 999px; font: 400 11px/1 'Michroma', 'Share Tech Mono', sans-serif;
       letter-spacing: 0.32em; text-transform: uppercase; color: #eef6ff; }
-    .plasma-btn.tap-enter .label-plate span { padding-left: 0.32em; }
+    .plasma-btn.tap-enter .label-plate span { padding-left: 0.32em; transition: opacity 0.35s ease; }
+    /* ENTER only ever shows in Michroma: hidden until the font is in (script by the gate) */
+    .plasma-btn.tap-enter:not(.font-ready) .label-plate span { opacity: 0; }
+    /* a soft dark pool behind the word, feathered out, so ENTER reads clearly
+       over the brightest plasma */
+    .plasma-btn.tap-enter .label-plate::before {
+      inset: -11px -20px;
+      background: radial-gradient(closest-side, rgba(0,4,14,0.78), rgba(0,4,14,0.52) 60%, rgba(0,4,14,0) 100%);
+      -webkit-mask-image: radial-gradient(closest-side, black 56%, transparent 100%);
+      mask-image: radial-gradient(closest-side, black 56%, transparent 100%);
+    }
+    /* SEND on phones: the same pool, sized to the smaller button */
+    @media (hover: none) {
+      #tri-modal .lv-send .label-plate::before {
+        inset: -8px -15px;
+        background: radial-gradient(closest-side, rgba(0,4,14,0.78), rgba(0,4,14,0.52) 60%, rgba(0,4,14,0) 100%);
+        -webkit-mask-image: radial-gradient(closest-side, black 56%, transparent 100%);
+        mask-image: radial-gradient(closest-side, black 56%, transparent 100%);
+      }
+    }
     /* A second, LOCAL backdrop-filter hugging just the label/icon — its own
        dim patch, feathered with a mask so it reads as a soft halo rather
        than a chip glued on top of the glass. */
@@ -1264,7 +1310,7 @@
         transition: transform 0.52s cubic-bezier(0.16,1,0.3,1) !important;
       }
       #panel-experience.node-active #ew-sphere-side {
-        transform: translate(0, -37%) scale(0.4) !important;
+        transform: translate(0, calc(-37% + 36px)) scale(0.68) !important;
         transform-origin: center center !important;
       }
       /* Default-state sphere labels: shrink so EXPERIMENTING fits its arc like OPERATOR / FOUNDER / SKILLS */
@@ -1281,16 +1327,16 @@
         opacity: 1 !important;
         pointer-events: none !important;
       }
-      #panel-experience.node-active #ew-labels .ew-sec-label.active-label .ew-sec-name {
-        font-size: 14px !important;
-        max-width: 96px !important;
+      #panel-experience.node-active #ew-labels .ew-sec-label:not(.active-label) .ew-sec-name {
+        color: rgba(125,138,154,0.9) !important;
+        text-shadow: none !important;
       }
       #panel-experience.node-active #ew-hint {
         display: none !important;
       }
       #panel-experience.node-active #ew-content-side {
         position: absolute !important;
-        top: 27% !important;
+        top: calc(27% + 68px) !important;
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
@@ -1739,20 +1785,17 @@
   align-items:center; justify-content:center;
   flex-direction:column; gap:40px;
 ">
-  <!-- Subtle label, etched like the clock -->
-  <div style="
-    font-family:'Michroma','Share Tech Mono',sans-serif;
-    font-size:9px;
-    letter-spacing:0.35em;
-    padding-left:0.35em;
-    color:var(--etch-face);
-    opacity:0.55;
-    text-shadow:var(--etch-cut);
-    text-transform:uppercase;
-  ">ECHO OS v0.1a</div>
 
   <!-- the plasma glass button, like the Message popup's SEND (same engine and tint) -->
-  <button id="orb-tap-btn" class="plasma-btn tap-enter" type="button"><canvas id="orb-tap-canvas"></canvas><span class="label-plate"><span>Tap to enter</span></span></button>
+  <button id="orb-tap-btn" class="plasma-btn tap-enter" type="button"><canvas id="orb-tap-canvas"></canvas><span class="label-plate"><span>Enter</span></span></button>
+  <script>
+    // reveal ENTER once Michroma has loaded (at most 3 s, so it's never left blank)
+    (function () {
+      const b = document.getElementById('orb-tap-btn'), show = () => b.classList.add('font-ready');
+      if (!document.fonts) return show();
+      Promise.race([document.fonts.load("11px 'Michroma'"), new Promise(r => setTimeout(r, 3000))]).then(show, show);
+    })();
+  </script>
 </div>
 
 <style>
@@ -2224,15 +2267,24 @@
     #tri-modal .lv-hero { margin-top: -28px; } #tri-modal .lv-sendrow { margin-top: 54px; }
   }
   @media (max-width: 800px) {
+    /* Phones (Message A, "tight orbit"): the desktop layout, compact. FROM, LENGTH
+       and VIBE sit around the sphere on the same thin etched leaders (short runs,
+       see place() in message-popup.js), in small etched type; a smaller SEND. */
     #tri-modal { padding: 16px; }
-    #tri-modal-box { width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; }
-    #tri-modal .lv-hero { height: auto; padding-top: 236px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px 16px; cursor: default; }
-    #tri-modal .lv-hero canvas.gl { height: 236px; bottom: auto; }
-    #tri-modal .lv-hero svg { display: none; }
-    #tri-modal .ro { position: static !important; max-width: none !important; justify-items: start !important; text-align: left !important; }
-    #tri-modal .ro.left .ro-in { text-align: left; }
-    #tri-modal .ro-in { width: 100%; border-bottom-color: rgba(150,200,245,0.16); }
-    #tri-modal .lv-script { margin-top: 10px; }
+    #tri-modal-box { width: 100%; max-width: 358px; box-sizing: border-box; max-height: calc(100dvh - 32px); overflow-y: auto; }
+    #tri-modal #lv-state { zoom: 0.72; }
+    #tri-modal .lv-hero { height: 236px; cursor: default; }
+    #tri-modal .ro { gap: 4px; max-width: 110px; }
+    #tri-modal .ro.editable { pointer-events: auto; cursor: text; padding: 6px 8px; margin: -6px -8px; }
+    #tri-modal .ro-k { font-size: 4.5px; letter-spacing: 0.32em; }
+    #tri-modal .ro-v, #tri-modal .ro-in { font-size: 5.5px; letter-spacing: 0.12em; }
+    #tri-modal .ro-sub { font-size: 4.5px; margin-top: 0; }
+    #tri-modal .ro-in { width: 90px; padding: 1px 0 2px; }
+    #tri-modal .lv-script { margin-top: 6px; }
+    #tri-modal .lv-msg { font-size: 8px; }
+    #tri-modal .lv-sendrow { margin-top: 16px; }
+    #tri-modal .lv-send { padding: 7px 16px; font-size: 6.5px; }
+    #tri-modal .lv-done p { font-size: 8px; }
   }
   @media (max-width: 480px) { #tri-modal-box { padding: 22px 18px; } }
   @media (prefers-reduced-motion: reduce) { #tri-modal .lv-dots i { animation: none; opacity: .7; } #tri-modal .act-halo { animation: none; } }
@@ -4648,7 +4700,7 @@ function checkTrophy(key) {
   }
 
   function getRadii(W,H){
-    if(H>W){const b=W*0.86;return{r1:b*0.255,r2:b*0.47};}
+    if(H>W){const b=W*0.97;return{r1:b*0.255,r2:b*0.47};}   // portrait (phones): the wheel spans ~91% of the width
     const b=Math.min(W,H);return{r1:b*0.165,r2:b*0.305};
   }
 
@@ -5029,10 +5081,16 @@ function checkTrophy(key) {
 
     function build(){
       built = true;
-      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'low-power'});
+      // Touch devices (phones) draw the plasma onto solid dark glass instead of a
+      // transparent canvas: the additive glow leaves pixels brighter than their
+      // own alpha, which desktop Chrome smooths over but phone browsers (WebKit)
+      // show washed out or with hard edges. Desktop keeps the transparent canvas.
+      const solidGlass = matchMedia('(hover: none)').matches;
+      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:!solidGlass, powerPreference:'low-power'});
       renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
       renderer.setSize(W, H, false);
-      renderer.setClearColor(0x000000, 0);
+      if (solidGlass) renderer.setClearColor(0x04060c, 1);
+      else renderer.setClearColor(0x000000, 0);
 
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 10);
@@ -5129,9 +5187,12 @@ function checkTrophy(key) {
         frame();
       }
 
-      btn.addEventListener('pointerenter', ()=>{ if (!btn.disabled) hotTarget = 1; });
+      // only a mouse hovers: on a phone a tap fires pointerenter and never
+      // pointerleave, which left the plasma stuck bright and zoomed
+      btn.addEventListener('pointerenter', (e)=>{ if (e.pointerType === 'mouse' && !btn.disabled) hotTarget = 1; });
       btn.addEventListener('pointerleave', ()=>{ hotTarget = 0; tiltTX = 0; tiltTY = 0; });
       btn.addEventListener('pointermove', (e)=>{
+        if (e.pointerType !== 'mouse') return;
         const r = btn.getBoundingClientRect();
         const nx = (e.clientX - r.left)/r.width * 2 - 1;
         const ny = (e.clientY - r.top)/r.height * 2 - 1;
@@ -5696,25 +5757,27 @@ function checkTrophy(key) {
       padding: 28px 22px;
       scrollbar-width: none;   /* a few px of overflow from the ring shouldn't show a bar */
     }
-    /* phones: no room around the ring for leader lines, so the details sit
-       as a 2x2 grid under the ring (RENDER · LOCATION / DISTANCE · NODE) and
-       the live log above it; ring.js only moves the readouts while the lines
-       show, so here they stay in the flow */
-    #ver-callouts { display: none; }
-    #ver-modal-box { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; align-content: start; align-items: start; }
-    /* ring.js leaves room above the ring for a corner log; here the log has its own row */
-    #ver-modal-content { grid-column: 1 / -1; margin-top: -34px; }
-    #ver-activity { position: static; order: -1; grid-column: 1 / -1; width: auto; min-width: 0; gap: 10px; }
-    #ver-activity .act-log { width: 100%; }
-    #ver-activity .act-row { gap: 8px; font-size: 7.5px; }
-    #ver-activity .act-l { width: 5.4em; }
-    .ver-readout { position: static; transform: none !important; white-space: normal; gap: 5px; min-width: 0;
-      padding-top: 10px; border-top: 1px solid rgba(150,200,245,0.12); }
-    .ver-readout.is-left, .ver-readout.is-right { align-items: flex-start; text-align: left; }
-    .ver-readout[data-angle="135"] { order: 1; }
-    .ver-readout[data-angle="45"]  { order: 2; }
-    .ver-readout[data-angle="225"] { order: 3; }
-    .ver-readout[data-angle="315"] { order: 4; }
+    /* Phones (Status D): the iCO and ring a size smaller (ring.js), the four
+       readings back on their glass leaders (short tick + run), small etched type;
+       the LIVE log a small corner block; LIVE and ONLINE smaller. LOCATION drops
+       its second line and NODE CONNECTED reads NODE (ring.js). */
+    #ver-activity { left: 22px; top: 22px; width: 190px; gap: 6px; }
+    #ver-activity .act-live { zoom: 0.72; }
+    #ver-activity .act-log { gap: 4px; width: 100%; }
+    #ver-activity .act-row { font-size: 5.5px; gap: 6px; }
+    #ver-activity .act-l { width: 5em; }
+    #ver-modal-box .ro-k { font-size: 4.5px; letter-spacing: 0.32em; }
+    .ver-readout { gap: 4px; }
+    .ver-readout .ro-v { font-size: 5.5px; }
+    .ver-readout .ro-sub { font-size: 4.5px; margin-top: 0; }
+    .ver-readout [data-ro="link2"], .ver-readout [data-ro="visits"] { display: none; }
+    /* each reading sits on its line's outer end and reads inward (ring.js):
+       right-side ones right-aligned, left-side ones left-aligned */
+    .ver-readout.is-right { align-items: flex-end; text-align: right; }
+    .ver-readout.is-left  { align-items: flex-start; text-align: left; }
+    #ver-status-badge.gl { gap: 9px; }
+    #ver-status-badge.gl #ver-status-label { font-size: 7px; }
+    #ver-status-dot { width: 7px; height: 7px; }
     #ver-modal-box::-webkit-scrollbar { display: none; }
   }
 </style>
@@ -5796,7 +5859,7 @@ function checkTrophy(key) {
      three.min.js script tag up in <head>, same as every other WebGL bit on
      this page. Must load after that tag (it does — this sits near the end
      of body) so window.THREE already exists when ico.js runs. -->
-<script src="ico.js?v=20260930"></script>
+<script src="ico.js?v=20261001"></script>
 
 <script>
   // ── Status ───────────────────────────────────────────────────────────
@@ -5978,15 +6041,15 @@ function checkTrophy(key) {
      Classic script like ico.js (reuses the global THREE). Loads after the
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
-<script src="etched.js?v=20260930"></script>
-<script src="ring.js?v=20260930"></script>
+<script src="etched.js?v=20261001"></script>
+<script src="ring.js?v=20261001"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->
-<script src="eve-mesh.js?v=20260930"></script>
-<script src="menu-orbs.js?v=20260930"></script>
+<script src="eve-mesh.js?v=20261001"></script>
+<script src="menu-orbs.js?v=20261001"></script>
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
-<script src="message-popup.js?v=20260930"></script>
+<script src="message-popup.js?v=20261001"></script>
 
 </body>
 </html>

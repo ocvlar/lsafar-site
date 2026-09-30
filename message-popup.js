@@ -546,20 +546,23 @@
   const v3 = new THREE.Vector3();
   function place(W, H) {
     let d = '', dots = '', hits = '';
+    // phones: the same leaders with short runs, the labels tucked closer (Message A)
+    const compact = matchMedia('(max-width: 800px)').matches;
+    const runs = compact ? [10, 10, 10] : RUN, gap = compact ? 8 : 10, lift = compact ? 7 : 9;
     ros.forEach((el, i) => {
       v3.set(Math.cos(ANG[i]) * SR * 1.02, Math.sin(ANG[i]) * SR * 1.02, 0).project(cam);
       const x = (v3.x * 0.5 + 0.5) * W, y = (-v3.y * 0.5 + 0.5) * H;
       const side = x < W / 2 ? -1 : 1, up = y < H / 2 ? -1 : 1;
       const ex = x + side * 20, ey = y + up * 16;
-      const lx = RUN[i] ? ex + side * RUN[i] : side < 0 ? Math.min(ex - 18, 140) : Math.max(ex + 18, W - 140);
+      const lx = runs[i] ? ex + side * runs[i] : side < 0 ? Math.min(ex - 18, 140) : Math.max(ex + 18, W - 140);
       d += `M${x.toFixed(1)} ${y.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)} L${lx.toFixed(1)} ${ey.toFixed(1)} `;
       if (el.querySelector('input')) hits += `<path class="hit" data-i="${i}" d="M${x.toFixed(1)} ${y.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)} L${lx.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="transparent" stroke-width="16"/>`;
       dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="rgba(3,8,16,0.9)" stroke="rgba(150,200,245,0.45)" stroke-width="0.8"/>`;
       el.className = 'ro ' + (side < 0 ? 'left' : 'right') + (el.querySelector('input') ? ' editable' : '');
-      el.style.top = (ey - 9) + 'px';
-      if (side < 0) { el.style.right = (W - lx + 10) + 'px'; el.style.left = 'auto'; }
-      else { el.style.left = (lx + 10) + 'px'; el.style.right = 'auto'; }
-      el.style.maxWidth = (side < 0 ? lx - 10 : W - lx - 10) + 'px';
+      el.style.top = (ey - lift) + 'px';
+      if (side < 0) { el.style.right = (W - lx + gap) + 'px'; el.style.left = 'auto'; }
+      else { el.style.left = (lx + gap) + 'px'; el.style.right = 'auto'; }
+      el.style.maxWidth = (side < 0 ? lx - gap : W - lx - gap) + 'px';
     });
     svg.innerHTML = `<path d="${d}" fill="none" stroke="rgba(0,0,0,0.85)" stroke-width="1" transform="translate(0,-0.6)"/>
       <path d="${d}" fill="none" stroke="rgba(150,200,245,0.32)" stroke-width="1"/>${dots}${hits}`;
