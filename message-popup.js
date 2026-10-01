@@ -235,13 +235,26 @@
   const clamp01 = x => Math.max(0, Math.min(1, x));
   const easeInOut = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
 
+  // The soft glow sprites' falloff, written as exact pixels (white, alpha
+  // 1 → 0.6 → 0.14 → 0 at r = 0, 0.2, 0.5, 1). It used to be a canvas radial
+  // gradient, which iPhone Safari dithers; the faint, noisy pixels showed as
+  // dark specks in the sphere's core once stretched over it.
   const glowTex = (() => {
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d'), grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.2, 'rgba(255,255,255,0.6)');
-    grd.addColorStop(0.5, 'rgba(255,255,255,0.14)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
-    return new THREE.CanvasTexture(c);
+    const N = 128, d = new Uint8Array(N * N * 4);
+    const stops = [[0, 1], [0.2, 0.6], [0.5, 0.14], [1, 0]];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const r = Math.min(1, Math.hypot(x + 0.5 - N / 2, y + 0.5 - N / 2) / (N / 2));
+      let a = 0;
+      for (let k = 1; k < stops.length; k++) if (r <= stops[k][0]) {
+        const [r0, a0] = stops[k - 1], [r1, a1] = stops[k];
+        a = a0 + (a1 - a0) * (r - r0) / (r1 - r0); break;
+      }
+      const i = (y * N + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(a * 255);
+    }
+    const t = new THREE.DataTexture(d, N, N, THREE.RGBAFormat);
+    t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
+    return t;
   })();
   const glow = (rgb, size, opacity = 1) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial(Object.assign({ map: glowTex, opacity }, ADD)));

@@ -1391,6 +1391,8 @@
       .ewp-tag-link,
       .ewp-tag-active { font-size: 9px !important; padding: 2px 6px !important; letter-spacing: 0.06em !important; }
       .ewp-sublabel { font-size: 9px !important; letter-spacing: 0.14em !important; }
+      /* FOUNDER's "Building…": the same size as the Polyspheric Inc. heading above it */
+      .ewp-sublabel:has(.typing-dots) { font-size-adjust: 0.48 !important; }
       .ewp-footer { font-size: 10px !important; line-height: 1.6 !important; }
       .ewp-yap-btn { font-size: 9px !important; }
       .ewp-directed { font-size: 8px !important; }
@@ -5232,11 +5234,13 @@ function checkTrophy(key) {
         // resting (disabled): dim and slow until it's ready; it wakes by easing up
         rest += ((btn.disabled ? 1 : 0) - rest) * 0.06;
         // touch screens never hover, so the plasma churns faster there and sways a little
-        const touchBoost = solidGlass && !stillUntilHover ? 1.9 : 1;
+        // ...and a tap wakes it like a hover does on desktop: it surges while the
+        // finger is down and settles back after (hot, eased above)
+        const touchBoost = solidGlass && !stillUntilHover ? 2.6 + hot * 3.2 : 1;
         plasmaMat.uniforms.uTime.value += (1/60) * (stillUntilHover ? hot * 0.85 : 0.5 + hot*0.35) * touchBoost * (1 - rest * 0.7);
         if (solidGlass && !stillUntilHover) {
-          const tt = plasmaMat.uniforms.uTime.value;
-          tiltTY = Math.sin(tt * 0.9) * 0.07; tiltTX = Math.cos(tt * 0.7) * 0.04;   // subtle: more would bare the pill's ends
+          const tt = plasmaMat.uniforms.uTime.value, sw = 1 + hot * 0.6;
+          tiltTY = Math.sin(tt * 0.9) * 0.07 * sw; tiltTX = Math.cos(tt * 0.7) * 0.04 * sw;   // subtle: more would bare the pill's ends
         }
         plasmaMat.uniforms.uBrightness.value = (1.55 + hot*0.6) * brightnessMul * (1 - rest * 0.62);
         // Ease toward whatever color window.setPlasmaButtonColor() last set,
@@ -5266,6 +5270,12 @@ function checkTrophy(key) {
       // only a mouse hovers: on a phone a tap fires pointerenter and never
       // pointerleave, which left the plasma stuck bright and zoomed
       btn.addEventListener('pointerenter', (e)=>{ if (e.pointerType === 'mouse' && !btn.disabled) hotTarget = 1; });
+      // touch: the plasma surges while the finger is down, then eases back
+      let tapOff = 0;
+      btn.addEventListener('pointerdown', (e)=>{ if (e.pointerType !== 'mouse' && !btn.disabled) { clearTimeout(tapOff); hotTarget = 1; } });
+      const tapUp = (e)=>{ if (e.pointerType !== 'mouse') { clearTimeout(tapOff); tapOff = setTimeout(()=>{ hotTarget = 0; }, 450); } };
+      btn.addEventListener('pointerup', tapUp);
+      btn.addEventListener('pointercancel', tapUp);
       btn.addEventListener('pointerleave', ()=>{ hotTarget = 0; tiltTX = 0; tiltTY = 0; });
       btn.addEventListener('pointermove', (e)=>{
         if (e.pointerType !== 'mouse') return;
@@ -5863,9 +5873,9 @@ function checkTrophy(key) {
     #ver-activity .act-row:nth-child(1) { display: none; }   /* the latest two entries only */
     #ver-activity .act-l { width: 4.6em; }
     /* the ring and its readings start below the log, whatever the screen height */
-    #ver-modal-content { padding-top: 30px; }
-    /* the popup keeps its earlier phone size (280px) with the smaller ring centred in it */
-    #ver-modal-box { min-height: 280px; }
+    #ver-modal-content { padding-top: 0; margin-top: -21px; }   /* with the popup at Message's height: equal space above and below the ring group */
+    /* the same size as the Message popup on phones (358 x 371), the ring centred in it */
+    #ver-modal-box { min-height: 371px; }
     #ver-modal-box .ro-k { font-size: 4px; letter-spacing: 0.32em; }
     .ver-readout { gap: 3px; }
     .ver-readout .ro-v { font-size: 5px; }
@@ -5960,7 +5970,7 @@ function checkTrophy(key) {
      three.min.js script tag up in <head>, same as every other WebGL bit on
      this page. Must load after that tag (it does — this sits near the end
      of body) so window.THREE already exists when ico.js runs. -->
-<script src="ico.js?v=20261001d"></script>
+<script src="ico.js?v=20261001e"></script>
 
 <script>
   // ── Status ───────────────────────────────────────────────────────────
@@ -6142,15 +6152,15 @@ function checkTrophy(key) {
      Classic script like ico.js (reuses the global THREE). Loads after the
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
-<script src="etched.js?v=20261001d"></script>
-<script src="ring.js?v=20261001d"></script>
+<script src="etched.js?v=20261001e"></script>
+<script src="ring.js?v=20261001e"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->
-<script src="eve-mesh.js?v=20261001d"></script>
-<script src="menu-orbs.js?v=20261001d"></script>
+<script src="eve-mesh.js?v=20261001e"></script>
+<script src="menu-orbs.js?v=20261001e"></script>
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
-<script src="message-popup.js?v=20261001d"></script>
+<script src="message-popup.js?v=20261001e"></script>
 
 </body>
 </html>
