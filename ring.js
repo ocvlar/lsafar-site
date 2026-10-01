@@ -1291,7 +1291,7 @@
   let fpsCap = 60;           // 120/144Hz screens don't render extra frames
   const clock = new THREE.Clock();
   let time = 0, lastDraw = 0, raf = 0, running = false;
-  let slowAcc = 0, slowN = 0; // adaptive quality
+  let slowAcc = 0, slowSq = 0, slowN = 0, slowWarm = true; // adaptive quality; the first window after opening is warm-up
   let overShown = false;
   const TAU = Math.PI * 2;
   let ringRock = 0; // current rock angle, part of ring.rotation.z
@@ -1304,13 +1304,20 @@
 
     // If we can't hold ~40fps over ~2s, drop resolution a notch (down to 1×);
     // if it's still slow at 1×, drop to 30fps.
-    slowAcc += interval; slowN++;
+    // A steady ~30fps isn't the GPU struggling but the screen capping frames
+    // (iPhone Low Power Mode): that dropped the ring to 1x on a 3x phone, soft
+    // and jaggy. So a steady 30 keeps its resolution, and phones never go
+    // below 1.5x even when they really are slow.
+    slowAcc += interval; slowSq += interval * interval; slowN++;
     if (slowN >= 120) {
-      if (slowAcc / slowN > 25) {
-        if (pr > 1) { pr = Math.max(1, pr - 0.25); resize(); }
+      const mean = slowAcc / slowN, sd = Math.sqrt(Math.max(0, slowSq / slowN - mean * mean));
+      const capped = mean > 30 && mean < 36 && sd < 4;
+      const floor = PHONE.matches ? Math.min(1.5, Math.min(devicePixelRatio || 1, 2)) : 1;
+      if (mean > 25 && !capped && !slowWarm) {
+        if (pr > floor) { pr = Math.max(floor, pr - 0.25); resize(); }
         else fpsCap = 30;
       }
-      slowAcc = 0; slowN = 0;
+      slowAcc = 0; slowSq = 0; slowN = 0; slowWarm = false;
     }
 
     const dt = Math.min(clock.getDelta(), 0.05);
@@ -1383,6 +1390,7 @@
   function start() {
     if (running || !isOpen || document.hidden) return;
     running = true; lastDraw = 0; clock.getDelta();
+    slowAcc = 0; slowSq = 0; slowN = 0; slowWarm = true;   // opening frames are slow: don't judge them
     raf = requestAnimationFrame(frame);
   }
   function stop() {

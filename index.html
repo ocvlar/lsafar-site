@@ -34,6 +34,7 @@
     }
     html, body {
       width: 100%; height: 100%;
+      -webkit-text-size-adjust: 100%; text-size-adjust: 100%;   /* iOS: keep small type at its set size (no auto-enlarging) */
       background: #000;
       background-color: #000;
       overflow: hidden;
@@ -767,6 +768,15 @@
       padding: 0 36px 16px !important;
       flex-shrink: 0;
     }
+    /* Phones: the back arrow at the panel's far left (10px in, 14px down) and a
+       size smaller (15px arrow, 30px target); the space under it grows to
+       match, so nothing below it moves */
+    @media (max-width: 768px) {
+      .info-panel .panel-back { width: 30px; height: 30px; margin: 0 0 42px -42px !important; position: relative; top: -28px; }
+      .info-panel.exp-active .panel-back { top: 0; }
+      .info-panel.exp-active .panel-back { margin: 14px 0 24px 10px !important; }
+      .info-panel .panel-back svg { width: 15px; height: 15px; }
+    }
     .info-panel-inner {
       position: relative;
       width: min(860px, 88vw);
@@ -957,6 +967,16 @@
     @media (prefers-reduced-motion: reduce) {
       #skills-yap-btn::before { animation: none; opacity: 0.7; }
     }
+    /* Phones: both icons sized to the 11px heading beside them (glyph ~10px,
+       matching the caps), each keeping a bigger invisible tap area */
+    @media (max-width: 768px) {
+      #ewp-ig-btn { width: 20px; height: 20px; margin-left: -6px; }
+      #ewp-ig-btn svg { width: 10px; height: 10px; }
+      #ewp-ig-btn::after, #skills-yap-btn::after { content: ""; position: absolute; inset: -12px; }
+      #skills-yap-btn { width: 18px; height: 18px; margin-left: -3px; }
+      #skills-yap-btn svg { width: 10px; height: 10px; }
+      #ewp-ig-btn::before, #skills-yap-btn::before { inset: -3px; }
+    }
     .panel-title {
       display: none;
     }
@@ -1030,6 +1050,14 @@
         -webkit-backdrop-filter: brightness(0.92) saturate(1.25) contrast(1.05);
         backdrop-filter: brightness(0.92) saturate(1.25) contrast(1.05);
       }
+      /* Phone browsers (WebKit) don't clip GPU layers (the WebGL canvas, the
+         backdrop-filtered frost) to the pill's rounded overflow, so their square
+         corners showed as a box around ENTER / SEND: each layer rounds itself. */
+      .plasma-btn canvas, .plasma-btn::before, .plasma-btn::after {
+        border-radius: inherit;
+        clip-path: inset(0 round 9999px);
+      }
+      .plasma-btn { -webkit-mask-image: -webkit-radial-gradient(white, black); }
       /* the label, a touch dimmer so it sits in the glass instead of blazing
          on it: softer white, a gentler glow, a slightly deeper patch behind */
       .plasma-btn .label-plate::before { background: rgba(0,4,14,0.3); }
@@ -5165,7 +5193,13 @@ function checkTrophy(key) {
         // Still-until-hover buttons only advance time while hovered.
         // resting (disabled): dim and slow until it's ready; it wakes by easing up
         rest += ((btn.disabled ? 1 : 0) - rest) * 0.06;
-        plasmaMat.uniforms.uTime.value += (1/60) * (stillUntilHover ? hot * 0.85 : 0.5 + hot*0.35) * (1 - rest * 0.7);
+        // touch screens never hover, so the plasma churns faster there and sways a little
+        const touchBoost = solidGlass && !stillUntilHover ? 1.9 : 1;
+        plasmaMat.uniforms.uTime.value += (1/60) * (stillUntilHover ? hot * 0.85 : 0.5 + hot*0.35) * touchBoost * (1 - rest * 0.7);
+        if (solidGlass && !stillUntilHover) {
+          const tt = plasmaMat.uniforms.uTime.value;
+          tiltTY = Math.sin(tt * 0.9) * 0.07; tiltTX = Math.cos(tt * 0.7) * 0.04;   // subtle: more would bare the pill's ends
+        }
         plasmaMat.uniforms.uBrightness.value = (1.55 + hot*0.6) * brightnessMul * (1 - rest * 0.62);
         // Ease toward whatever color window.setPlasmaButtonColor() last set,
         // rather than cutting instantly — a re-tint should feel like the
@@ -5238,7 +5272,9 @@ function checkTrophy(key) {
   document.addEventListener('DOMContentLoaded', () => {
     // The Directed Works arrows are plain etched icons (no plasma) — see the
     // .dc-nav rules near their markup — so they don't mount here.
-    mountPlasmaButton('yap-modal-close', 'yap-modal-close-canvas', {stretchDivisor: 1.4});
+    // phones: CLOSE in ENTER / SEND's blue; desktop keeps its own tint
+    mountPlasmaButton('yap-modal-close', 'yap-modal-close-canvas', matchMedia('(max-width: 768px)').matches
+      ? { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff } : { stretchDivisor: 1.4 });
     mountPlasmaButton('orb-tap-btn', 'orb-tap-canvas', { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff });   // SEND's tint
   });
 })();
@@ -5371,6 +5407,22 @@ function checkTrophy(key) {
   #yap-modal-close {
     font-family: 'Michroma', 'Share Tech Mono', sans-serif;
     font-size-adjust: 0.37;
+  }
+  /* Phones: the popup in the phone popups' scale (Message / Status), and its
+     CLOSE in ENTER's properties: SEND's size, the dark pool behind the word
+     (the blue tint is set where it mounts) */
+  @media (max-width: 768px) {
+    #yap-modal-box { width: min(358px, calc(100vw - 32px)); box-sizing: border-box; padding: 26px 24px 22px; border-radius: 18px; }
+    #yap-modal-body { font-size: 11px; line-height: 2; letter-spacing: 0.04em; color: rgba(225,235,248,0.92); }
+    #yap-modal-footer { margin-top: 18px; }
+    #yap-modal-close { padding: 7px 16px; font-size: 6.5px; font-size-adjust: none; letter-spacing: 0.32em; text-transform: uppercase; border-radius: 999px; }
+    #yap-modal-close .label-plate span { padding-left: 0.32em; }
+    #yap-modal-close .label-plate::before {
+      inset: -8px -15px;
+      background: radial-gradient(closest-side, rgba(0,4,14,0.78), rgba(0,4,14,0.52) 60%, rgba(0,4,14,0) 100%);
+      -webkit-mask-image: radial-gradient(closest-side, black 56%, transparent 100%);
+      mask-image: radial-gradient(closest-side, black 56%, transparent 100%);
+    }
   }
 </style>
 <div id="yap-modal" onclick="closeYap()">
@@ -5761,11 +5813,14 @@ function checkTrophy(key) {
        readings back on their glass leaders (short tick + run), small etched type;
        the LIVE log a small corner block; LIVE and ONLINE smaller. LOCATION drops
        its second line and NODE CONNECTED reads NODE (ring.js). */
-    #ver-activity { left: 22px; top: 22px; width: 190px; gap: 6px; }
-    #ver-activity .act-live { zoom: 0.72; }
-    #ver-activity .act-log { gap: 4px; width: 100%; }
-    #ver-activity .act-row { font-size: 5.5px; gap: 6px; }
-    #ver-activity .act-l { width: 5em; }
+    #ver-activity { left: 22px; top: 20px; width: 168px; gap: 5px; }
+    #ver-activity .act-live { zoom: 0.64; }
+    #ver-activity .act-log { gap: 3px; width: 100%; }
+    #ver-activity .act-row { font-size: 4.5px; gap: 5px; }
+    #ver-activity .act-row:nth-child(1) { display: none; }   /* the latest two entries only */
+    #ver-activity .act-l { width: 4.6em; }
+    /* the ring and its readings start below the log, whatever the screen height */
+    #ver-modal-content { padding-top: 30px; }
     #ver-modal-box .ro-k { font-size: 4.5px; letter-spacing: 0.32em; }
     .ver-readout { gap: 4px; }
     .ver-readout .ro-v { font-size: 5.5px; }
@@ -5859,7 +5914,7 @@ function checkTrophy(key) {
      three.min.js script tag up in <head>, same as every other WebGL bit on
      this page. Must load after that tag (it does — this sits near the end
      of body) so window.THREE already exists when ico.js runs. -->
-<script src="ico.js?v=20261001"></script>
+<script src="ico.js?v=20261001b"></script>
 
 <script>
   // ── Status ───────────────────────────────────────────────────────────
@@ -6041,15 +6096,15 @@ function checkTrophy(key) {
      Classic script like ico.js (reuses the global THREE). Loads after the
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
-<script src="etched.js?v=20261001"></script>
-<script src="ring.js?v=20261001"></script>
+<script src="etched.js?v=20261001b"></script>
+<script src="ring.js?v=20261001b"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->
-<script src="eve-mesh.js?v=20261001"></script>
-<script src="menu-orbs.js?v=20261001"></script>
+<script src="eve-mesh.js?v=20261001b"></script>
+<script src="menu-orbs.js?v=20261001b"></script>
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
-<script src="message-popup.js?v=20261001"></script>
+<script src="message-popup.js?v=20261001b"></script>
 
 </body>
 </html>
