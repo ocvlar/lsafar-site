@@ -593,7 +593,7 @@
     }
     // phones (Status D): the iCO and ring a size smaller, leaving room around
     // the ring for the readings on their leaders
-    if (PHONE.matches) { k *= 0.78; ringPx *= 0.78; }
+    if (PHONE.matches) { k *= 0.68; ringPx *= 0.68; }
     const icoPx = ICO * k;
     wrap.style.width = wrap.style.height = icoPx + 'px';
     const wpp = 2 * R / ringPx; // world units per CSS px at the iCO's depth
@@ -850,7 +850,7 @@
       if (nx * (pA.x - pC.x) + ny * (pA.y - pC.y) < 0) { nx = -nx; ny = -ny; } // …pointing outward
       const sx = pA.x + nx * co.tubePx, sy = pA.y + ny * co.tubePx;         // tube's outer surface
       // phones (Status D): a short tick and run, like desktop's shape at the smaller size
-      const tick = PHONE.matches ? 9 : c.tick, run = PHONE.matches ? 40 : c.run;
+      const tick = PHONE.matches ? 7 : c.tick, run = PHONE.matches ? 32 : c.run;
       const ex = sx + nx * tick, ey = sy + ny * tick;                     // out from the ring
       const hx = ex + c.dx * run;                                         // elbow run to the label
       const d = `M${sx.toFixed(1)} ${sy.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}H${hx.toFixed(1)}`;
@@ -867,7 +867,7 @@
       const path3 = [jw, ew, hw];
       // same on-screen thickness for every leader: front joints are nearer
       // the camera, so their tubes get a proportionally thinner radius
-      const r = LEADER_R * (PHONE.matches ? 0.75 : 1) * (camera.position.distanceTo(jw) / D);
+      const r = LEADER_R * (PHONE.matches ? 0.62 : 1) * (camera.position.distanceTo(jw) / D);
       setLeaderGeo(c.glassGeo, path3, r);
       setLeaderGeo(c.glowGeo, path3, r * 0.78);
       setLeaderGeo(c.coreGeo, path3, r * 0.26);

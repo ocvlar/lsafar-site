@@ -2208,6 +2208,14 @@
     line-height: 1;
     transition: color 0.2s ease, text-shadow 0.2s ease;
   }
+  /* Phones: the date, clock, ✕ Message and △ Status a touch over the menu
+     labels' size (ME / WORK / EXPERIENCE are 7px there), face buttons to match */
+  @media (max-width: 768px) {
+    .ps2-date, .ps2-time { font-size: 8px !important; }
+    #x-btn-label, #ver-btn-label { font-size: 8px; }
+    #tri-btn, #ver-btn { gap: 6px; }
+    .ps2-btn { width: 12px; height: 12px; top: 0.5px; }
+  }
 
 </style>
 
@@ -5091,7 +5099,7 @@ function checkTrophy(key) {
     const brightnessMul = opts.brightnessMul || 1;
 
     let built = false, W = 0, H = 0;
-    let renderer, scene, camera, group, plasmaMat, plasmaGeo, stretchFor, ro;
+    let renderer, scene, camera, group, plasmaMat, plasmaGeo, stretchFor, ro, fitPillNow = null;
     // opts.stillUntilHover: the plasma holds still (and isn't re-rendered at
     // all) until the button is hovered, then churns while hovered and eases
     // back to still. needsDraw forces one frame after a build or resize.
@@ -5114,11 +5122,31 @@ function checkTrophy(key) {
       // own alpha, which desktop Chrome smooths over but phone browsers (WebKit)
       // show washed out or with hard edges. Desktop keeps the transparent canvas.
       const solidGlass = matchMedia('(hover: none)').matches;
-      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:!solidGlass, powerPreference:'low-power'});
+      // ...and the glass is drawn already pill-shaped, transparent outside the
+      // pill: in iOS Low Power Mode, Safari stops clipping the canvas to the
+      // button's rounded corners (CSS radius / clip-path / mask are all ignored
+      // there), so any square canvas showed as a box around ENTER / SEND.
+      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'low-power'});
       renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
       renderer.setSize(W, H, false);
-      if (solidGlass) renderer.setClearColor(0x04060c, 1);
-      else renderer.setClearColor(0x000000, 0);
+      renderer.setClearColor(0x000000, 0);
+      // the pill in drawing-buffer px: the canvas size and the corner radius
+      const pillRes = new THREE.Vector2(), pillU = { uRes: { value: pillRes }, uR: { value: 0 } };
+      const fitPill = () => { renderer.getDrawingBufferSize(pillRes); pillU.uR.value = Math.min(pillRes.x, pillRes.y) / 2; };
+      fitPill(); fitPillNow = fitPill;
+      const PILL = `uniform vec2 uRes; uniform float uR;
+        float pillMask(){ vec2 h = uRes*0.5; vec2 q = abs(gl_FragCoord.xy - h) - (h - uR);
+          float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uR; return clamp(0.5 - d, 0.0, 1.0); }`;
+      let glassScene = null, glassCam = null;
+      if (solidGlass) {
+        glassScene = new THREE.Scene();
+        glassCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        glassScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+          uniforms: pillU, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
+          vertexShader: `void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+          fragmentShader: PILL + `void main(){ float a = pillMask(); gl_FragColor = vec4(vec3(0.0157, 0.0235, 0.047) * a, a); }`,
+        })));
+      }
 
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 10);
@@ -5154,9 +5182,19 @@ function checkTrophy(key) {
           uColorMid:{value:targetMid.clone()},
           uColorBright:{value:targetBright.clone()}
         },
-        vertexShader:plasmaVS, fragmentShader:plasmaFS,
+        vertexShader:plasmaVS,
+        fragmentShader: solidGlass
+          ? PILL + plasmaFS.replace(/gl_FragColor=vec4\(([^;]*),alpha\*\(\.02\+\.98\*depth\)\);/, 'gl_FragColor=vec4($1,alpha*(.02+.98*depth)*pillMask());')
+          : plasmaFS,
         transparent:true, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false
       });
+      if (solidGlass) {
+        Object.assign(plasmaMat.uniforms, pillU);
+        // add light inside the pill only, leaving the glass's (pill) alpha as is
+        plasmaMat.blending = THREE.CustomBlending;
+        plasmaMat.blendSrc = THREE.SrcAlphaFactor; plasmaMat.blendDst = THREE.OneFactor;
+        plasmaMat.blendSrcAlpha = THREE.ZeroFactor; plasmaMat.blendDstAlpha = THREE.OneFactor;
+      }
       plasmaGeo = new THREE.SphereGeometry(1, 80, 80);
       group.add(new THREE.Mesh(plasmaGeo, plasmaMat));
 
@@ -5213,10 +5251,14 @@ function checkTrophy(key) {
         group.rotation.x = tiltX;
         camera.position.z = baseZoom - hot*0.10;
 
+        drawPlasma();
+      }
+      function drawPlasma(){
+        if (glassScene) { renderer.autoClear = true; renderer.render(glassScene, glassCam); renderer.autoClear = false; }
         renderer.render(scene, camera);
       }
       if(reduceMotion){
-        renderer.render(scene, camera);
+        drawPlasma();
       } else {
         frame();
       }
@@ -5247,6 +5289,7 @@ function checkTrophy(key) {
       if (!built) { build(); return; }
       needsDraw = true;
       renderer.setSize(W, H, false);
+      if (fitPillNow) fitPillNow();
       camera.aspect = W/H;
       camera.updateProjectionMatrix();
       group.scale.x = stretchFor(W/H);
@@ -5821,18 +5864,19 @@ function checkTrophy(key) {
     #ver-activity .act-l { width: 4.6em; }
     /* the ring and its readings start below the log, whatever the screen height */
     #ver-modal-content { padding-top: 30px; }
-    #ver-modal-box .ro-k { font-size: 4.5px; letter-spacing: 0.32em; }
-    .ver-readout { gap: 4px; }
-    .ver-readout .ro-v { font-size: 5.5px; }
-    .ver-readout .ro-sub { font-size: 4.5px; margin-top: 0; }
+    #ver-modal-box .ro-k { font-size: 4px; letter-spacing: 0.32em; }
+    .ver-readout { gap: 3px; }
+    .ver-readout .ro-v { font-size: 5px; }
+    .ver-readout .ro-sub { font-size: 4px; margin-top: 0; }
     .ver-readout [data-ro="link2"], .ver-readout [data-ro="visits"] { display: none; }
     /* each reading sits on its line's outer end and reads inward (ring.js):
        right-side ones right-aligned, left-side ones left-aligned */
     .ver-readout.is-right { align-items: flex-end; text-align: right; }
     .ver-readout.is-left  { align-items: flex-start; text-align: left; }
-    #ver-status-badge.gl { gap: 9px; }
-    #ver-status-badge.gl #ver-status-label { font-size: 7px; }
-    #ver-status-dot { width: 7px; height: 7px; }
+    /* ONLINE a step under LIVE (LIVE draws at ~6px) */
+    #ver-status-badge.gl { gap: 7px; }
+    #ver-status-badge.gl #ver-status-label { font-size: 5px; }
+    #ver-status-dot { width: 5px; height: 5px; }
     #ver-modal-box::-webkit-scrollbar { display: none; }
   }
 </style>
@@ -5914,7 +5958,7 @@ function checkTrophy(key) {
      three.min.js script tag up in <head>, same as every other WebGL bit on
      this page. Must load after that tag (it does — this sits near the end
      of body) so window.THREE already exists when ico.js runs. -->
-<script src="ico.js?v=20261001b"></script>
+<script src="ico.js?v=20261001c"></script>
 
 <script>
   // ── Status ───────────────────────────────────────────────────────────
@@ -6096,15 +6140,15 @@ function checkTrophy(key) {
      Classic script like ico.js (reuses the global THREE). Loads after the
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
-<script src="etched.js?v=20261001b"></script>
-<script src="ring.js?v=20261001b"></script>
+<script src="etched.js?v=20261001c"></script>
+<script src="ring.js?v=20261001c"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->
-<script src="eve-mesh.js?v=20261001b"></script>
-<script src="menu-orbs.js?v=20261001b"></script>
+<script src="eve-mesh.js?v=20261001c"></script>
+<script src="menu-orbs.js?v=20261001c"></script>
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
-<script src="message-popup.js?v=20261001b"></script>
+<script src="message-popup.js?v=20261001c"></script>
 
 </body>
 </html>
