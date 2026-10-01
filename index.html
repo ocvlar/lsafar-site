@@ -2208,13 +2208,13 @@
     line-height: 1;
     transition: color 0.2s ease, text-shadow 0.2s ease;
   }
-  /* Phones: the date, clock, ✕ Message and △ Status a touch over the menu
-     labels' size (ME / WORK / EXPERIENCE are 7px there), face buttons to match */
+  /* Phones: the date, clock, ✕ Message and △ Status at 10px (12px on desktop),
+     face buttons 14px (18px on desktop) */
   @media (max-width: 768px) {
-    .ps2-date, .ps2-time { font-size: 8px !important; }
-    #x-btn-label, #ver-btn-label { font-size: 8px; }
-    #tri-btn, #ver-btn { gap: 6px; }
-    .ps2-btn { width: 12px; height: 12px; top: 0.5px; }
+    .ps2-date, .ps2-time { font-size: 10px !important; }
+    #x-btn-label, #ver-btn-label { font-size: 10px; }
+    #tri-btn, #ver-btn { gap: 7px; }
+    .ps2-btn { width: 14px; height: 14px; top: 0.5px; }
   }
 
 </style>
@@ -5864,6 +5864,8 @@ function checkTrophy(key) {
     #ver-activity .act-l { width: 4.6em; }
     /* the ring and its readings start below the log, whatever the screen height */
     #ver-modal-content { padding-top: 30px; }
+    /* the popup keeps its earlier phone size (280px) with the smaller ring centred in it */
+    #ver-modal-box { min-height: 280px; }
     #ver-modal-box .ro-k { font-size: 4px; letter-spacing: 0.32em; }
     .ver-readout { gap: 3px; }
     .ver-readout .ro-v { font-size: 5px; }
@@ -5958,7 +5960,7 @@ function checkTrophy(key) {
      three.min.js script tag up in <head>, same as every other WebGL bit on
      this page. Must load after that tag (it does — this sits near the end
      of body) so window.THREE already exists when ico.js runs. -->
-<script src="ico.js?v=20261001c"></script>
+<script src="ico.js?v=20261001d"></script>
 
 <script>
   // ── Status ───────────────────────────────────────────────────────────
@@ -6140,15 +6142,15 @@ function checkTrophy(key) {
      Classic script like ico.js (reuses the global THREE). Loads after the
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
-<script src="etched.js?v=20261001c"></script>
-<script src="ring.js?v=20261001c"></script>
+<script src="etched.js?v=20261001d"></script>
+<script src="ring.js?v=20261001d"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->
-<script src="eve-mesh.js?v=20261001c"></script>
-<script src="menu-orbs.js?v=20261001c"></script>
+<script src="eve-mesh.js?v=20261001d"></script>
+<script src="menu-orbs.js?v=20261001d"></script>
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
-<script src="message-popup.js?v=20261001c"></script>
+<script src="message-popup.js?v=20261001d"></script>
 
 </body>
 </html>

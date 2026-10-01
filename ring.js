@@ -999,7 +999,9 @@
     let countryName = country;
     try { if (country) countryName = new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country; } catch (err) {}
     const place = [city, countryName].filter(Boolean).join(', ');
-    if (roLink && place) roLink.textContent = `${place} · ${ms} ms`;
+    // phones: the short form, city and country code without the round trip ("Ar Rayyān, QA")
+    const short = city ? [city, country].filter(Boolean).join(', ') : countryName;
+    if (roLink && place) roLink.textContent = PHONE.matches ? short : `${place} · ${ms} ms`;
     if (roLink2) roLink2.textContent = colo ? `via ${colo} edge` : '';
   });
 
