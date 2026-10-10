@@ -2485,6 +2485,7 @@ function enterHold(i){
   paintChapter(i);
   elChapter.classList.add('show');
   elTransit.classList.remove('show');
+  phoneFit();   // re-checked on each arrival, in case the text's layout changed
 }
 /* travel from wherever the camera is to chapter i, forwards or back */
 function goTo(i){
@@ -2602,6 +2603,7 @@ function tick(){
     inner.rotation.x += u.spin.x*dt;
     inner.rotation.y += u.spin.y*dt;
     inner.rotation.z += u.spin.z*dt;
+    inner.position.y += ((u.fitY || 0) - inner.position.y)*Math.min(1, dt*3);   // phones: phoneFit
     if (u.tick) u.tick(t, dt);
 
     const on   = (i === stopIndex && phase === 'hold');
@@ -2735,16 +2737,62 @@ function tick(){
   renderer.render(scene, camera);
 }
 
+/* Phones: every chapter's object sits the same distance above its title.
+   The objects were placed for desktop's paragraphs; on a phone each paragraph
+   wraps to its own height and the text block is anchored at its bottom, so the
+   titles land at different heights (EVE ended ~95px above THE REBOOT, the others
+   ~65). Each object moves up or down inside its holder (the camera keeps aiming
+   at the holder) until its lowest point is PHONE_GAP px above where its title
+   will be: worked out per chapter from that paragraph's height (measured off-
+   screen) and the camera's settled view of the chapter. */
+const PHONE_GAP = 60;
+// each object's lowest visible point below its holder, in NODE_R (measured on a phone)
+const OBJ_LOW = { bsod:-1.30, insta:-1.09, dna:-0.77, fibreloader:-1.25 };
+const fitCam = new THREE.PerspectiveCamera(), fitP = new THREE.Vector3();
+function phoneFit(){
+  nodes.forEach(n => { n.userData.fitY = 0; });
+  if (!PHONE_VIEW.matches || !panel.clientHeight) return;
+  const H = PH();
+  // the paragraph's height for each chapter, and where the current one puts the title
+  // (layout offsets, not screen rects: the panel can still be scaling open)
+  const meas = elBlurb.cloneNode(false);
+  meas.removeAttribute('id'); meas.setAttribute('aria-hidden', 'true');
+  meas.style.cssText = 'position:absolute;left:0;right:0;visibility:hidden;transition:none;transform:none';
+  elChapter.appendChild(meas);
+  const curH = elBlurb.offsetHeight;
+  const titleNow = elChapter.offsetTop + elName.offsetTop;
+  nodes.forEach((n, i) => {
+    const low = OBJ_LOW[CHAPTERS[i].asset];
+    if (low === undefined) return;
+    meas.textContent = CHAPTERS[i].blurb;
+    const titleTop = titleNow - (meas.offsetHeight - curH);
+    // the camera as it settles on chapter i (no drift)
+    fitCam.copy(camera);
+    fitCam.position.copy(spine.getPointAt(STOPS[i] - APPROACH));
+    fitCam.up.copy(upVec);
+    fitCam.lookAt(fitP.copy(n.position).addScaledVector(upVec, -NODE_R*1.15));
+    fitCam.updateMatrixWorld();
+    const y0 = fitP.copy(n.position).project(fitCam).y;
+    const y1 = fitP.copy(n.position).add(upVec).project(fitCam).y;
+    const holderY = (1 - y0)/2*H, ppu = (y1 - y0)/2*H;   // px down the panel, px per unit
+    n.userData.fitY = (holderY - titleTop + PHONE_GAP)/ppu - low*NODE_R;
+  });
+  meas.remove();
+}
+
 new ResizeObserver(()=>{
   camera.aspect = PW()/PH();
   project();
   renderer.setSize(PW(), PH(), false);
+  phoneFit();
 }).observe(panel);
+if (document.fonts) document.fonts.ready.then(phoneFit);   // the paragraphs' heights need Michroma
 
 /* ============================================================
    START
    ============================================================ */
 enterHold(0);
+nodes.forEach(n => { n.userData.inner.position.y = n.userData.fitY; });   // in place from the first frame
 clock.start();
 return {
   open(){ panelOpen = true; startLoop(); },
