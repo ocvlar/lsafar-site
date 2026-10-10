@@ -158,6 +158,17 @@
     if (holo) holo.text(msg.value);
   });
 
+  // the sphere's launch sound ("UI Sound 73"), embedded like the splash sound so it
+  // also plays when the page is opened as a file; uses the page's shared AudioContext
+  // (decoded the first time the popup opens: SEND_SOUND sits at the end of this file)
+  let sendBuf = null, sendDecoding = false;
+  function loadSendSound() {
+    if (sendDecoding || typeof _actx === 'undefined' || typeof SEND_SOUND === 'undefined') return;
+    sendDecoding = true;
+    const bin = atob(SEND_SOUND), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    _actx.decodeAudioData(arr.buffer, buf => { sendBuf = buf; }, () => {});
+  }
 
   form.addEventListener('submit', e => {
     e.preventDefault();
@@ -174,7 +185,9 @@
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ name: name.value.trim() || 'anonymous', message: msg.value.trim(), vibe: vibeNow }),
     }).then(r => { if (!r.ok) throw new Error('send failed: ' + r.status); });
-    const shown = new Promise(res => (holo ? holo.send(res, () => {}) : setTimeout(res, 900)));
+    // and the sphere's sound as the ball launches up out of it
+    const whoosh = () => { if (sendBuf && typeof playSound === 'function') playSound(sendBuf); };
+    const shown = new Promise(res => (holo ? holo.send(res, whoosh) : (whoosh(), setTimeout(res, 900))));
     Promise.all([post, shown]).then(() => {
       setState('DELIVERED');
       // the sphere stays; the transcript and the send row give way to the reply
@@ -214,7 +227,7 @@
     });
   }
   if (document.fonts) document.fonts.ready.then(() => { if (!sec.querySelector('.lv-done').hidden) fitDone(); });
-  window.__msgPopup = { opened() { if (!sec.querySelector('.lv-done').hidden) resetAll(); } };
+  window.__msgPopup = { opened() { loadSendSound(); if (!sec.querySelector('.lv-done').hidden) resetAll(); } };
   // after sending, the reply takes the message line's place; the message line and SEND
   // keep their space (just invisible), so the popup keeps its exact size
   function showDone(on) {
