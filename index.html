@@ -3525,6 +3525,7 @@ window.echoBoot = (() => {
 
 // ── AUDIO ──
 const _actx = new (window.AudioContext || window.webkitAudioContext)();
+const _soundURL = new Map();   // embedded sound -> its data URL (playSound's fallback)
 let _bufHover   = null;
 let _bufBack    = null;
 let _bufTrophy  = null;
@@ -3535,6 +3536,7 @@ let _bufSound3  = null;
 
 (function() {
   function decode(b64, cb) {
+    const _cb = cb; cb = buf => { _soundURL.set(buf, 'data:audio/mpeg;base64,' + b64); _cb(buf); };
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
@@ -3614,8 +3616,18 @@ function playSound(buf) {
   }
   if (_actx.state === 'running') {
     _play();
+    return;
+  }
+  // the page's audio is paused (a phone can pause it, e.g. while WORK's videos
+  // load and play): this tap's sound goes through an <audio> element, which a
+  // tap is allowed to start right away, and the page's audio wakes for the next
+  const url = _soundURL.get(buf);
+  if (url) {
+    const a = new Audio(url);
+    a.play().catch(() => {});
+    _actx.resume().catch(() => {});
   } else {
-    _actx.resume().then(_play);
+    _actx.resume().then(_play, () => {});
   }
 }
 
@@ -4598,6 +4610,14 @@ function dcChangePage(delta) {
   _dcProjectIdx = (_dcProjectIdx + delta + _dcProjects.length) % _dcProjects.length;
   dcShowProject(_dcProjects[_dcProjectIdx]);
 }
+// TENSAY's YouTube card: on desktop a click opens the video (hover shows its
+// line); on phones a tap shows / hides the line, and the play button opens it
+function dcYtTap(e) {
+  const card = document.getElementById('dc-yt');
+  if (!matchMedia('(hover: none) and (pointer: coarse)').matches) { dcPlayYoutube(); return; }
+  if (card.classList.contains('dc-yt-on') && e && e.target.closest('.dc-play-btn')) { dcPlayYoutube(); return; }
+  card.classList.toggle('dc-yt-on');
+}
 function dcPlayYoutube() {
   window.open('https://www.youtube.com/watch?v=RJO10CkzMts', '_blank');
 }
@@ -4735,8 +4755,10 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     width: 1100px !important; height: 680px !important; max-height: none !important;
     flex: none; transform: scale(var(--dc-fit, 1)); transform-origin: center;
   }
-  #directed-modal.dc-fit .dc-nav-prev { left: max(6px, env(safe-area-inset-left)); }
-  #directed-modal.dc-fit .dc-nav-next { right: max(6px, env(safe-area-inset-right)); }
+  /* the arrows ~18px off the scaled panel's edges (their 16px icon sits
+     centred in a 64px tap area), never closer to the screen edge than 6px */
+  #directed-modal.dc-fit .dc-nav-prev { left: max(6px, env(safe-area-inset-left), calc(50% - 550px * var(--dc-fit, 1) - 58px)); }
+  #directed-modal.dc-fit .dc-nav-next { right: max(6px, env(safe-area-inset-right), calc(50% - 550px * var(--dc-fit, 1) - 58px)); }
   #dc-rotate { display: none; }
   #directed-modal.dc-upright #dc-panel,
   #directed-modal.dc-upright .dc-nav { display: none !important; }
@@ -4779,6 +4801,15 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
   addEventListener('orientationchange', () => setTimeout(dcFit, 120));   // some phones report the new size a beat late
   if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', dcFit);
   addEventListener('DOMContentLoaded', dcFit);
+  // phones get lighter copies of WORK's videos (name_m.mp4: at most 960px on
+  // the long side, ~1 Mbps), sized for the scaled-down panel, so they start
+  // and keep up on mobile data; desktop keeps the originals
+  addEventListener('DOMContentLoaded', () => {
+    if (!(matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) <= 600)) return;
+    document.querySelectorAll('#directed-modal video[src$=".mp4"]').forEach(v => {
+      v.src = v.getAttribute('src').replace(/\.mp4$/, '_m.mp4');
+    });
+  });
 </script>
 <div id="directed-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;backdrop-filter:blur(2px);" onclick="hideDirected()">
   <!-- upright phones: asked to turn sideways first (dcFit) -->
@@ -4808,11 +4839,13 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
           </div>
         </div>
         <div class="dc-video">
-          <video src="directed_tensay.mp4" preload="auto" muted loop playsinline></video>
+          <video src="directed_tensay.mp4" poster="directed_tensay_poster.jpg" preload="auto" muted loop playsinline></video>
         </div>
       </div>
-      <div id="dc-yt" onclick="dcPlayYoutube()" style="position:absolute;left:28px;bottom:28px;width:460px;max-width:60%;aspect-ratio:16/9;cursor:pointer;border-radius:10px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+      <div id="dc-yt" onclick="dcYtTap(event)" style="position:absolute;left:28px;bottom:28px;width:460px;max-width:60%;aspect-ratio:16/9;cursor:pointer;border-radius:10px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
         <img src="directed_inspired.png" style="display:block;width:100%;height:100%;object-fit:cover;" draggable="false"/>
+        <!-- phones: the YouTube icon, top right (no hover there to reveal the play button) -->
+        <div class="dc-yt-icon" onclick="event.stopPropagation(); dcPlayYoutube()" title="Watch on YouTube" aria-label="Watch on YouTube" role="button"><svg width="30" height="30" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M164.44,121.34l-48-32A8,8,0,0,0,104,96v64a8,8,0,0,0,12.44,6.66l48-32a8,8,0,0,0,0-13.32ZM120,145.05V111l25.58,17ZM234.33,69.52a24,24,0,0,0-14.49-16.4C185.56,39.88,131,40,128,40s-57.56-.12-91.84,13.12a24,24,0,0,0-14.49,16.4C19.08,79.5,16,97.74,16,128s3.08,48.5,5.67,58.48a24,24,0,0,0,14.49,16.41C69,215.56,120.4,216,127.34,216h1.32c6.94,0,58.37-.44,91.18-13.11a24,24,0,0,0,14.49-16.41c2.59-10,5.67-28.22,5.67-58.48S236.92,79.5,234.33,69.52Zm-15.49,113a8,8,0,0,1-4.77,5.49c-31.65,12.22-85.48,12-86,12H128c-.54,0-54.33.2-86-12a8,8,0,0,1-4.77-5.49C34.8,173.39,32,156.57,32,128s2.8-45.39,5.16-54.47A8,8,0,0,1,41.93,68c30.52-11.79,81.66-12,85.85-12h.27c.54,0,54.38-.18,86,12a8,8,0,0,1,4.77,5.49C221.2,82.61,224,99.43,224,128S221.2,173.39,218.84,182.47Z"/></svg></div>
         <div class="dc-yt-overlay">
           <div class="dc-play-btn">
             <svg width="52" height="52" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><path d="M164.44,121.34l-48-32A8,8,0,0,0,104,96v64a8,8,0,0,0,12.44,6.66l48-32a8,8,0,0,0,0-13.32ZM120,145.05V111l25.58,17ZM234.33,69.52a24,24,0,0,0-14.49-16.4C185.56,39.88,131,40,128,40s-57.56-.12-91.84,13.12a24,24,0,0,0-14.49,16.4C19.08,79.5,16,97.74,16,128s3.08,48.5,5.67,58.48a24,24,0,0,0,14.49,16.41C69,215.56,120.4,216,127.34,216h1.32c6.94,0,58.37-.44,91.18-13.11a24,24,0,0,0,14.49-16.41c2.59-10,5.67-28.22,5.67-58.48S236.92,79.5,234.33,69.52Zm-15.49,113a8,8,0,0,1-4.77,5.49c-31.65,12.22-85.48,12-86,12H128c-.54,0-54.33.2-86-12a8,8,0,0,1-4.77-5.49C34.8,173.39,32,156.57,32,128s2.8-45.39,5.16-54.47A8,8,0,0,1,41.93,68c30.52-11.79,81.66-12,85.85-12h.27c.54,0,54.38-.18,86,12a8,8,0,0,1,4.77,5.49C221.2,82.61,224,99.43,224,128S221.2,173.39,218.84,182.47Z"/></svg>
@@ -4846,7 +4879,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
       <img id="dc-gal-orange" class="dc-gal-img" src="directed_galactica_orange.jpg" onmouseenter="dcGalHover('dc-gal-orange')" onmouseleave="dcGalUnhover()" style="position:absolute;left:28px;top:calc(50% - 30px);transform:translateY(-50%);width:195px;height:440px;object-fit:cover;border-radius:10px;border:1px solid rgba(120,160,220,0.25);box-shadow:0 0 24px rgba(80,130,255,0.12), 0 20px 50px rgba(0,0,0,0.5);z-index:2;opacity:1;" draggable="false"/>
       <img id="dc-gal-purple" class="dc-gal-img" src="directed_galactica_purple.jpg" onmouseenter="dcGalHover('dc-gal-purple')" onmouseleave="dcGalUnhover()" style="position:absolute;left:88px;top:calc(50% + 60px);transform:translateY(-50%);width:195px;height:440px;object-fit:cover;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:1;opacity:.45;" draggable="false"/>
       <div style="position:absolute;left:calc(50% + 30px);top:50%;transform:translate(-50%,-50%);width:460px;max-width:80%;aspect-ratio:1/1;">
-        <video id="dc-gal-video" src="directed_galactica_video.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-gal-video" src="directed_galactica_video.mp4" poster="directed_galactica_video_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-gal-mute-btn" class="dc-shake" onclick="dcToggleGalMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
@@ -4858,7 +4891,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
       </div>
     </div>
     <div class="dc-page" id="dc-page-lostinspace" style="position:relative;flex:1;min-height:0;display:none;">
-      <video id="dc-gal-chrome-video" src="directed_galactica_chrome.mp4" preload="none" muted loop playsinline style="position:absolute;left:28px;bottom:28px;width:480px;max-width:60%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+      <video id="dc-gal-chrome-video" src="directed_galactica_chrome.mp4" poster="directed_galactica_chrome_poster.jpg" preload="none" muted loop playsinline style="position:absolute;left:28px;bottom:28px;width:480px;max-width:60%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
       <div class="dc-title-wrap" style="position:absolute;left:554px;bottom:58px;height:270px;">
         <div class="dc-title">
           <div class="dc-title-main" style="font-size:30px;letter-spacing:0.1em;">LOST IN SPACE</div>
@@ -4866,7 +4899,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
         </div>
       </div>
       <div style="position:absolute;right:28px;top:50%;transform:translateY(-50%);width:330px;max-width:38%;aspect-ratio:9/16;">
-        <video id="dc-lis-video" src="directed_lost_in_space.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-lis-video" src="directed_lost_in_space.mp4" poster="directed_lost_in_space_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-lis-yt-btn" onclick="dcPlayLostInSpaceYoutube()" title="Watch on YouTube" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M164.44,121.34l-48-32A8,8,0,0,0,104,96v64a8,8,0,0,0,12.44,6.66l48-32a8,8,0,0,0,0-13.32ZM120,145.05V111l25.58,17ZM234.33,69.52a24,24,0,0,0-14.49-16.4C185.56,39.88,131,40,128,40s-57.56-.12-91.84,13.12a24,24,0,0,0-14.49,16.4C19.08,79.5,16,97.74,16,128s3.08,48.5,5.67,58.48a24,24,0,0,0,14.49,16.41C69,215.56,120.4,216,127.34,216h1.32c6.94,0,58.37-.44,91.18-13.11a24,24,0,0,0,14.49-16.41c2.59-10,5.67-28.22,5.67-58.48S236.92,79.5,234.33,69.52Zm-15.49,113a8,8,0,0,1-4.77,5.49c-31.65,12.22-85.48,12-86,12H128c-.54,0-54.33.2-86-12a8,8,0,0,1-4.77-5.49C34.8,173.39,32,156.57,32,128s2.8-45.39,5.16-54.47A8,8,0,0,1,41.93,68c30.52-11.79,81.66-12,85.85-12h.27c.54,0,54.38-.18,86,12a8,8,0,0,1,4.77,5.49C221.2,82.61,224,99.43,224,128S221.2,173.39,218.84,182.47Z"/></svg>
         </div>
@@ -4876,7 +4909,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     </div>
     <div class="dc-page" id="dc-page-onlyhuman" style="position:relative;flex:1;min-height:0;display:none;">
       <div style="position:absolute;left:28px;top:50%;transform:translateY(-50%);width:300px;max-width:38%;height:560px;max-height:80%;">
-        <video id="dc-human-video" src="directed_only_human.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-human-video" src="directed_only_human.mp4" poster="directed_only_human_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-human-mute-btn" class="dc-shake" onclick="dcToggleHumanMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
@@ -4884,8 +4917,8 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
           <svg width="24" height="24" viewBox="0 0 32 32" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M22.3,8.4c-0.8,0-1.4,0.6-1.4,1.4c0,0.8,0.6,1.4,1.4,1.4c0.8,0,1.4-0.6,1.4-1.4C23.7,9,23.1,8.4,22.3,8.4z"/><path d="M16,10.2c-3.3,0-5.9,2.7-5.9,5.9s2.7,5.9,5.9,5.9s5.9-2.7,5.9-5.9S19.3,10.2,16,10.2z M16,19.9c-2.1,0-3.8-1.7-3.8-3.8c0-2.1,1.7-3.8,3.8-3.8c2.1,0,3.8,1.7,3.8,3.8C19.8,18.2,18.1,19.9,16,19.9z"/><path d="M20.8,4h-9.5C7.2,4,4,7.2,4,11.2v9.5c0,4,3.2,7.2,7.2,7.2h9.5c4,0,7.2-3.2,7.2-7.2v-9.5C28,7.2,24.8,4,20.8,4z M25.7,20.8c0,2.7-2.2,5-5,5h-9.5c-2.7,0-5-2.2-5-5v-9.5c0-2.7,2.2-5,5-5h9.5c2.7,0,5,2.2,5,5V20.8z"/></svg>
         </div>
       </div>
-      <img id="dc-gal3-human1" class="dc-gal-img" src="directed_human_1.png" onmouseenter="dcGal3Hover('dc-gal3-human1')" onmouseleave="dcGal3Unhover()" style="position:absolute;right:260px;top:28px;width:380px;max-width:44%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:1;opacity:.45;" draggable="false"/>
-      <img id="dc-gal3-human2" class="dc-gal-img" src="directed_human_2.png" onmouseenter="dcGal3Hover('dc-gal3-human2')" onmouseleave="dcGal3Unhover()" style="position:absolute;right:350px;top:158px;width:380px;max-width:44%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);z-index:2;opacity:1;" draggable="false"/>
+      <img id="dc-gal3-human1" class="dc-gal-img" src="directed_human_1.jpg" onmouseenter="dcGal3Hover('dc-gal3-human1')" onmouseleave="dcGal3Unhover()" style="position:absolute;right:260px;top:28px;width:380px;max-width:44%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:1;opacity:.45;" draggable="false"/>
+      <img id="dc-gal3-human2" class="dc-gal-img" src="directed_human_2.jpg" onmouseenter="dcGal3Hover('dc-gal3-human2')" onmouseleave="dcGal3Unhover()" style="position:absolute;right:350px;top:158px;width:380px;max-width:44%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);z-index:2;opacity:1;" draggable="false"/>
       <img src="directed_beirut.jpg" style="position:absolute;right:28px;bottom:28px;width:260px;max-width:32%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);" draggable="false"/>
       <div style="position:absolute;right:300px;top:490px;width:470px;max-width:56%;text-align:center;">
         <div class="dc-title-main" style="font-size:36px;letter-spacing:0.12em;">ONLY HUMAN</div>
@@ -4894,7 +4927,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     </div>
     <div class="dc-page" id="dc-page-breathein" style="position:relative;flex:1;min-height:0;display:none;">
       <div style="position:absolute;left:28px;top:140px;height:420px;max-height:65%;aspect-ratio:560/646;">
-        <video id="dc-artbat-video" src="directed_artbat_istanbul.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-artbat-video" src="directed_artbat_istanbul.mp4" poster="directed_artbat_istanbul_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-artbat-mute-btn" class="dc-shake" onclick="dcToggleArtbatMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
@@ -4913,11 +4946,11 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
       </div>
       <img id="dc-gal4-flower" class="dc-gal-img" src="directed_couple_flower.jpg" onmouseenter="dcGal4Hover('dc-gal4-flower')" onmouseleave="dcGal4Unhover()" style="position:absolute;right:40px;top:28px;width:380px;max-width:44%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);z-index:2;opacity:1;" draggable="false"/>
       <img id="dc-gal4-plant" class="dc-gal-img" src="directed_couple_plant.jpg" onmouseenter="dcGal4Hover('dc-gal4-plant')" onmouseleave="dcGal4Unhover()" style="position:absolute;right:170px;top:170px;width:340px;max-width:40%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:1;opacity:.45;" draggable="false"/>
-      <video id="dc-couplefeather-video" src="directed_couple_feather.mp4" preload="none" muted loop playsinline style="position:absolute;right:28px;bottom:28px;width:460px;max-width:52%;aspect-ratio:1280/704;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+      <video id="dc-couplefeather-video" src="directed_couple_feather.mp4" poster="directed_couple_feather_poster.jpg" preload="none" muted loop playsinline style="position:absolute;right:28px;bottom:28px;width:460px;max-width:52%;aspect-ratio:1280/704;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
     </div>
     <div class="dc-page" id="dc-page-doru" style="position:relative;flex:1;min-height:0;display:none;">
       <div style="position:absolute;left:40px;top:33px;width:350px;height:612px;">
-        <video id="dc-thankyou-video" src="directed_thankyou_istanbul.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-thankyou-video" src="directed_thankyou_istanbul.mp4" poster="directed_thankyou_istanbul_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-thankyou-mute-btn" class="dc-shake" onclick="dcToggleThankyouMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
@@ -4925,7 +4958,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
           <svg width="24" height="24" viewBox="0 0 32 32" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M22.3,8.4c-0.8,0-1.4,0.6-1.4,1.4c0,0.8,0.6,1.4,1.4,1.4c0.8,0,1.4-0.6,1.4-1.4C23.7,9,23.1,8.4,22.3,8.4z"/><path d="M16,10.2c-3.3,0-5.9,2.7-5.9,5.9s2.7,5.9,5.9,5.9s5.9-2.7,5.9-5.9S19.3,10.2,16,10.2z M16,19.9c-2.1,0-3.8-1.7-3.8-3.8c0-2.1,1.7-3.8,3.8-3.8c2.1,0,3.8,1.7,3.8,3.8C19.8,18.2,18.1,19.9,16,19.9z"/><path d="M20.8,4h-9.5C7.2,4,4,7.2,4,11.2v9.5c0,4,3.2,7.2,7.2,7.2h9.5c4,0,7.2-3.2,7.2-7.2v-9.5C28,7.2,24.8,4,20.8,4z M25.7,20.8c0,2.7-2.2,5-5,5h-9.5c-2.7,0-5-2.2-5-5v-9.5c0-2.7,2.2-5,5-5h9.5c2.7,0,5,2.2,5,5V20.8z"/></svg>
         </div>
       </div>
-      <video id="dc-dorutouch-video" src="directed_doru_touch.mp4" preload="none" muted loop playsinline style="position:absolute;left:430px;top:107px;width:350px;height:193px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+      <video id="dc-dorutouch-video" src="directed_doru_touch.mp4" poster="directed_doru_touch_poster.jpg" preload="none" muted loop playsinline style="position:absolute;left:430px;top:107px;width:350px;height:193px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
       <img src="directed_doru_still.jpg" style="position:absolute;left:590px;top:382px;width:470px;height:260px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);" draggable="false"/>
       <img src="directed_doru_fetus.jpg" style="position:absolute;left:827px;top:40px;width:233px;height:291px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);" draggable="false"/>
       <div class="dc-title-wrap" style="position:absolute;left:410px;top:164px;height:612px;">
@@ -4937,7 +4970,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     </div>
     <div class="dc-page" id="dc-page-sweet" style="position:relative;flex:1;min-height:0;display:none;">
       <div style="position:absolute;left:20px;top:33px;width:330px;height:582px;">
-        <video id="dc-sweet-video" src="directed_sweet_video.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-sweet-video" src="directed_sweet_video.mp4" poster="directed_sweet_video_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-sweet-mute-btn" class="dc-shake" onclick="dcToggleSweetMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
@@ -4954,13 +4987,13 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     </div>
     <div class="dc-page" id="dc-page-greengirl" style="position:relative;flex:1;min-height:0;display:none;">
       <div style="position:absolute;left:40px;bottom:85px;width:312px;height:542px;">
-        <video id="dc-greengirl-video" src="directed_green_girl_video.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-greengirl-video" src="directed_green_girl_video.mp4" poster="directed_green_girl_video_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-greengirl-mute-btn" class="dc-shake" onclick="dcToggleGreengirlMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
       </div>
       <div style="position:absolute;left:750px;bottom:85px;width:313px;height:542px;">
-        <video id="dc-printworks-video" src="directed_printworks.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-printworks-video" src="directed_printworks.mp4" poster="directed_printworks_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-printworks-mute-btn" class="dc-shake" onclick="dcTogglePrintworksMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
@@ -4977,7 +5010,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     <div class="dc-page" id="dc-page-holonet" style="position:relative;flex:1;min-height:0;display:none;">
       <img id="dc-gal5-simu2" class="dc-gal-img" src="directed_simu_2.jpg" onmouseenter="dcGal5Hover('dc-gal5-simu2')" onmouseleave="dcGal5Unhover()" style="position:absolute;left:25px;top:98px;width:265px;height:422px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);z-index:2;opacity:1;" draggable="false"/>
       <img id="dc-gal5-simu1" class="dc-gal-img" src="directed_simu_1.jpg" onmouseenter="dcGal5Hover('dc-gal5-simu1')" onmouseleave="dcGal5Unhover()" style="position:absolute;left:88px;top:190px;width:264px;height:422px;object-fit:cover;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:1;opacity:.45;" draggable="false"/>
-      <video id="dc-holonet-video" src="directed_holonet.mp4" preload="none" muted loop playsinline style="position:absolute;left:410px;top:33px;width:330px;height:476px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+      <video id="dc-holonet-video" src="directed_holonet.mp4" poster="directed_holonet_poster.jpg" preload="none" muted loop playsinline style="position:absolute;left:410px;top:33px;width:330px;height:476px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
       <img src="directed_holonet_still.jpg" style="position:absolute;left:783px;top:198px;width:259px;height:382px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);" draggable="false"/>
       <div style="position:absolute;left:402px;top:553px;width:335px;text-align:center;">
         <div class="dc-title-main" style="font-size:30px;letter-spacing:0.12em;white-space:nowrap;">HOLONET</div>
@@ -4992,13 +5025,13 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
         </div>
       </div>
       <div style="position:absolute;left:25px;top:33px;width:335px;height:587px;">
-        <video id="dc-keyta-video" src="directed_keyta_video.mp4" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-keyta-video" src="directed_keyta_video.mp4" poster="directed_keyta_video_poster.jpg" preload="none" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
         <div id="dc-keyta-mute-btn" class="dc-shake" onclick="dcToggleKeytaMute()" title="Unmute" style="position:absolute;top:10px;right:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
           <svg width="24" height="24" viewBox="0 0 256 256" fill="#ffffff" xmlns="http://www.w3.org/2000/svg"><path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z"/></svg>
         </div>
       </div>
       <div style="position:absolute;left:535px;top:43px;width:435px;height:252px;">
-        <video id="dc-keyta-kiss-video" src="directed_keyta_kiss.mp4" preload="auto" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
+        <video id="dc-keyta-kiss-video" src="directed_keyta_kiss.mp4" poster="directed_keyta_kiss_poster.jpg" preload="auto" muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);"></video>
       </div>
       <img src="directed_keyta_bio.jpg" style="position:absolute;left:630px;top:355px;width:403px;height:272px;object-fit:cover;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,0.5);" draggable="false"/>
     </div>
@@ -5009,6 +5042,18 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
         opacity:0; transition:opacity .25s ease;
       }
       #dc-yt:hover .dc-yt-overlay { opacity:1; }
+      /* phones (no hover): a tap shows the description line and play button,
+         another tap hides them; the play button and the top-right YouTube
+         icon open the video (dcYtTap) */
+      .dc-yt-icon {
+        display:none; position:absolute; top:6px; right:6px; z-index:2;
+        width:52px; height:52px; align-items:center; justify-content:center;
+        filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+      }
+      @media (hover: none) and (pointer: coarse) {
+        .dc-yt-icon { display:flex; }
+        #dc-yt.dc-yt-on .dc-yt-overlay { opacity:1; }
+      }
       .dc-play-btn {
         position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
         width:56px; height:56px;
@@ -6438,7 +6483,7 @@ document.addEventListener('click', e => {
     #ver-activity .act-row:nth-child(1) { display: none; }   /* the latest two entries only */
     #ver-activity .act-l { width: 4.6em; }
     /* the ring and its readings start below the log, whatever the screen height */
-    #ver-modal-content { padding-top: 0; margin-top: -3px; }   /* the ring group a little below the popup's centre, clear of the LIVE log */
+    #ver-modal-content { padding-top: 0; margin-top: 14px; }   /* the ring group lower in the popup, well clear of the LIVE log */
     /* the same size as the Message popup on phones (358 x 371), the ring centred in it */
     #ver-modal-box { min-height: 371px; }
     #ver-modal-box .ro-k { font-size: 4px; letter-spacing: 0.32em; }
@@ -6451,7 +6496,7 @@ document.addEventListener('click', e => {
     .ver-readout.is-right { align-items: flex-end; text-align: right; }
     .ver-readout.is-left  { align-items: flex-start; text-align: left; }
     /* ONLINE a step under LIVE (LIVE draws at ~6px) */
-    #ver-status-badge.gl { gap: 7px; }
+    #ver-status-badge.gl { gap: 7px; margin-top: 6px; }   /* ONLINE a little further under the ring */
     #ver-status-badge.gl #ver-status-label { font-size: 5px; }
     #ver-status-dot { width: 5px; height: 5px; }
     #ver-modal-box::-webkit-scrollbar { display: none; }
@@ -6735,7 +6780,7 @@ document.addEventListener('click', e => {
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
 <script src="etched.js?v=20261010a"></script>
-<script src="ring.js?v=20261010d"></script>
+<script src="ring.js?v=20261010e"></script>
 <!-- ico-breach.js: the Status iCO's hidden easter egg (click it six times in
      a row). Needs ico.js (its noise GLSL) and ring.js (icoRing hooks). -->
 <script src="ico-breach.js?v=20261010v"></script>

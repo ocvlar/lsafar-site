@@ -595,9 +595,9 @@
       k = 0.6;
       ringPx = Math.max(ICO * k * 1.6, Math.min(S.size * ICO * k, (availW - 32) / 1.14, (availH - 24) / fH));
     }
-    // phones (Status D): the iCO and ring a little smaller, leaving room around
-    // the ring for the readings on their leaders
-    if (PHONE.matches) { k *= 0.8; ringPx *= 0.8; }
+    // phones (Status D): the iCO and ring a touch smaller (0.9), leaving room
+    // around the ring for the readings on their leaders
+    if (PHONE.matches) { k *= 0.9; ringPx *= 0.9; }
     const icoPx = ICO * k;
     wrap.style.width = wrap.style.height = icoPx + 'px';
     const wpp = 2 * R / ringPx; // world units per CSS px at the iCO's depth
@@ -854,7 +854,7 @@
       if (nx * (pA.x - pC.x) + ny * (pA.y - pC.y) < 0) { nx = -nx; ny = -ny; } // …pointing outward
       const sx = pA.x + nx * co.tubePx, sy = pA.y + ny * co.tubePx;         // tube's outer surface
       // phones (Status D): a short tick and run, like desktop's shape at the smaller size
-      const tick = PHONE.matches ? 7 : c.tick, run = PHONE.matches ? 32 : c.run;
+      const tick = PHONE.matches ? 7 : c.tick, run = PHONE.matches ? 40 : c.run;   // 40: the readings clear of the 0.9x ring
       const ex = sx + nx * tick, ey = sy + ny * tick;                     // out from the ring
       const hx = ex + c.dx * run;                                         // elbow run to the label
       const d = `M${sx.toFixed(1)} ${sy.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}H${hx.toFixed(1)}`;
