@@ -1651,7 +1651,10 @@
       .ewp-tag-link,
       .ewp-tag-active { font-size: 9px !important; padding: 2px 6px !important; letter-spacing: 0.06em !important; }
       .ewp-sublabel { font-size: 9px !important; letter-spacing: 0.14em !important; }
-      #panel-experience .ewp-lead { font-size: 9px !important; font-size-adjust: 0.48 !important; }
+      /* FOUNDER's Semantic DNA / System / Product / Brand leads: a step over
+         the text they lead (10px notes) and under Building… (12px). More specific
+         than the desktop .ewp-lead rule further down, whose 0.37 would win otherwise */
+      #panel-experience .ewp-note .ewp-lead { font-size: 11px !important; font-size-adjust: 0.48 !important; }
       .ewp-footer { font-size: 10px !important; line-height: 1.6 !important; }
       .ewp-yap-btn { font-size: 9px !important; }
       .ewp-directed { font-size: 8px !important; }
@@ -2789,13 +2792,13 @@
   @media (max-width: 768px) {
     #trophy-notif {
       top: 12px !important; right: 10px !important; left: auto !important;
-      min-width: 0 !important; width: min(196px, 54vw); height: 46px; box-sizing: border-box;
-      gap: 7px !important; padding: 6px 10px 6px 7px !important; border-radius: 7px !important;
+      min-width: 0 !important; width: min(218px, 58vw); height: 52px; box-sizing: border-box;
+      gap: 8px !important; padding: 7px 11px 7px 8px !important; border-radius: 8px !important;
     }
-    #trophy-notif img { width: 26px !important; height: 26px !important; }
+    #trophy-notif img { width: 30px !important; height: 30px !important; }
     #trophy-notif > div { min-width: 0; gap: 2px !important; }
-    #trophy-notif > div > div:first-child { font-size: 6px !important; }
-    #trophy-notif > div > div:last-child { font-size: 8.5px !important; line-height: 1.25; letter-spacing: 0.04em !important; }
+    #trophy-notif > div > div:first-child { font-size: 6.5px !important; }
+    #trophy-notif > div > div:last-child { font-size: 9.5px !important; line-height: 1.25; letter-spacing: 0.04em !important; }
     /* the ECHO OS splash: its glow within the screen (desktop's 600 x 300 ran
        off both sides and spread into a flat band), kept desktop's 2:1 oval
        so it doesn't read as a circle */
@@ -4085,7 +4088,7 @@ window.addEventListener('resize', () => {
   requestAnimationFrame(frame);
 })();
 
-function showDirected() { const m=document.getElementById('directed-modal'); m.style.display='flex'; m.style.opacity='0'; m.style.transition='opacity 0.25s'; requestAnimationFrame(()=>{m.style.opacity='1';}); _dcProjectIdx = 0; dcShowProject('tensay'); const chromeVideo = document.getElementById('dc-gal-chrome-video'); if (chromeVideo) chromeVideo.currentTime = 0; (window.__trail = window.__trail || []).push({ name: 'Works', t: Date.now() }); if(typeof checkTrophy === 'function') checkTrophy('directed'); }
+function showDirected() { const m=document.getElementById('directed-modal'); if (typeof dcFit === 'function') dcFit(); m.style.display='flex'; m.style.opacity='0'; m.style.transition='opacity 0.25s'; requestAnimationFrame(()=>{m.style.opacity='1';}); _dcProjectIdx = 0; dcShowProject('tensay'); const chromeVideo = document.getElementById('dc-gal-chrome-video'); if (chromeVideo) chromeVideo.currentTime = 0; (window.__trail = window.__trail || []).push({ name: 'Works', t: Date.now() }); if(typeof checkTrophy === 'function') checkTrophy('directed'); }
 function hideDirected() { playSound(_bufBack); const m=document.getElementById('directed-modal'); m.style.opacity='0'; setTimeout(()=>{m.style.display='none';m.style.opacity='1';},250); stopDcCarousel(); stopDcGalaxy(); dcResetGalVideo(); document.querySelectorAll('#directed-modal video').forEach(v => v.pause()); }
 let _dcOrder = null, _dcTimer = null;
 const _dcCaptions = {
@@ -4712,73 +4715,72 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     font-family: 'Michroma', 'Share Tech Mono', sans-serif !important;
     font-size-adjust: 0.48;
   }
-  @media (max-width: 768px) {
-    #directed-modal > div {
-      width: calc(100vw - 24px) !important;
-      height: 84vh !important;
-      max-height: 84vh !important;
-    }
-    /* Phones: the desktop collages (every piece placed by hand in px) become a
-       scrolling feed per project: its title on top, then each photo / video
-       full width in order, the unmute / YouTube / Instagram icons staying on
-       their video. The px width × height of each piece becomes its
-       aspect-ratio (script below), and tall ones are capped at 60vh. */
-    #directed-modal .dc-page {
-      overflow-y: auto; -webkit-overflow-scrolling: touch;
-      flex-direction: column; gap: 14px;
-      padding: 22px 16px 28px;
-      scrollbar-width: none;
-    }
-    #directed-modal .dc-page::-webkit-scrollbar { display: none; }
-    #directed-modal .dc-page > :not(style) {
-      position: relative !important;
-      left: auto !important; right: auto !important; top: auto !important; bottom: auto !important;
-      transform: none !important;
-      width: 100% !important; max-width: 100% !important;
-      height: auto !important; max-height: 60vh;
-      margin: 0 !important;
-      flex-shrink: 0;
-      z-index: auto !important;
-    }
-    #directed-modal .dc-page > .dc-gal-img { opacity: 1 !important; }
-    /* titles: horizontal, first, centred */
-    #directed-modal .dc-title-wrap { display: block; width: auto; height: auto; align-self: stretch; }
-    #directed-modal .dc-page > .dc-title-wrap,
-    #directed-modal .dc-page > div:has(> .dc-title-main) {
-      order: -1; max-height: none; text-align: center;
-      display: flex !important; flex-direction: column; align-items: center; padding: 4px 0 2px;
-    }
-    #directed-modal .dc-title { position: static !important; transform: none !important; text-align: center; }
-    #directed-modal .dc-page .dc-title-main { font-size: 24px !important; letter-spacing: 0.12em !important; white-space: normal !important; line-height: 1.2 !important; }
-    #directed-modal .dc-page .dc-title-sub { font-size: 12px !important; margin-top: 8px !important; white-space: normal !important; }
-    /* TENSAY: the page scrolls as one (carousel, video, then the YouTube card) */
-    #dc-page-tensay .directed-body {
-      overflow: visible !important; flex: none !important;
-      padding: 8px 0 0 !important; flex-direction: column !important; align-items: center !important; gap: 18px !important;
-      max-height: none;
-    }
-    #dc-page-tensay .dc-title-wrap { order: -1; }
-    #dc-page-tensay .dc-title-main { font-size: 30px !important; }
-    #dc-page-tensay > #dc-yt { aspect-ratio: 16 / 9; }
-    .dc-carousel { width:280px; height:180px; margin-bottom: 40px; }   /* room for its caption */
-    .dc-slide { width:90px; height:128px; }
-    .dc-slide.dc-left  { transform:translate(calc(-50% - 76px),-50%) scale(.75) rotateY(20deg); }
-    .dc-slide.dc-right { transform:translate(calc(-50% + 76px),-50%) scale(.75) rotateY(-20deg); }
-    .dc-video { width:100%; height:200px; }
+  /* WORK on phones and narrow windows: the desktop panel exactly as it is,
+     laid out at its full 1100 x 680 and scaled down as one piece to fit the
+     screen (the script below sets --dc-fit). A phone held upright gets a
+     "turn your phone" card first; WORK opens as soon as it's turned. */
+  #directed-modal.dc-fit #dc-panel {
+    width: 1100px !important; height: 680px !important; max-height: none !important;
+    flex: none; transform: scale(var(--dc-fit, 1)); transform-origin: center;
   }
+  #directed-modal.dc-fit .dc-nav-prev { left: max(6px, env(safe-area-inset-left)); }
+  #directed-modal.dc-fit .dc-nav-next { right: max(6px, env(safe-area-inset-right)); }
+  #dc-rotate { display: none; }
+  #directed-modal.dc-upright #dc-panel,
+  #directed-modal.dc-upright .dc-nav { display: none !important; }
+  #directed-modal.dc-upright #dc-rotate {
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    width: min(300px, calc(100vw - 48px)); padding: 30px 22px 26px; box-sizing: border-box;
+    text-align: center;
+    background: rgba(18,18,22,0.55);
+    -webkit-backdrop-filter: blur(32px) saturate(120%) brightness(0.85); backdrop-filter: blur(32px) saturate(120%) brightness(0.85);
+    border: 1px solid rgba(255,255,255,0.07); border-radius: 18px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;
+    animation: dcRotateIn 0.35s ease both;
+  }
+  #dc-rotate svg { width: 64px; height: 64px; overflow: visible; animation: dcTurn 2.6s cubic-bezier(0.65,0,0.35,1) infinite; }
+  #dc-rotate .r-cut  { stroke: rgba(0,0,0,0.8); }
+  #dc-rotate .r-lip  { stroke: rgba(205,222,245,0.32); }
+  #dc-rotate .r-face { stroke: var(--etch-lit, rgba(236,244,255,0.95)); filter: drop-shadow(0 0 6px rgba(140,200,255,0.45)); }
+  #dc-rotate .r-title { font-family: 'Michroma', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--etch-lit); text-shadow: var(--etch-cut); line-height: 1.6; }
+  #dc-rotate .r-sub { font-family: 'Michroma', sans-serif; font-size: 9px; letter-spacing: 0.08em; color: var(--etch-face); text-shadow: var(--etch-cut); line-height: 1.7; }
+  @keyframes dcTurn { 0%, 18% { transform: rotate(0deg); } 50%, 82% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+  @keyframes dcRotateIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { #dc-rotate svg, #directed-modal.dc-upright #dc-rotate { animation: none; } }
 </style>
 <script>
-  // WORK on phones: the collage pieces are sized in px for desktop; keep each
-  // one's shape when the phone layout stacks them full width
-  if (matchMedia('(max-width: 768px)').matches) addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('#directed-modal .dc-page > :not(style)').forEach(el => {
-      const st = el.style;
-      if (!st.aspectRatio && /px$/.test(st.width) && /px$/.test(st.height)) st.aspectRatio = parseFloat(st.width) + ' / ' + parseFloat(st.height);
-    });
-  });
+  // WORK's fit: a phone (touch, its short side at most 600px) or any window
+  // under 769px wide shows the desktop panel scaled to fit; an upright phone
+  // shows the turn-your-phone card instead, and swaps the moment it's turned
+  function dcFit() {
+    const m = document.getElementById('directed-modal');
+    if (!m) return;
+    const W = innerWidth, H = innerHeight;
+    const phone = matchMedia('(pointer: coarse)').matches && Math.min(W, H) <= 600;
+    const fit = phone || W <= 768;
+    m.classList.toggle('dc-fit', fit);
+    m.classList.toggle('dc-upright', phone && H > W);
+    // room for the arrows either side (~44px each), a little air above and below
+    if (fit) m.style.setProperty('--dc-fit', Math.min((W - 96) / 1100, (H - 16) / 680, 1).toFixed(4));
+  }
+  addEventListener('resize', dcFit);
+  addEventListener('orientationchange', () => setTimeout(dcFit, 120));   // some phones report the new size a beat late
+  if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', dcFit);
+  addEventListener('DOMContentLoaded', dcFit);
 </script>
 <div id="directed-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;backdrop-filter:blur(2px);" onclick="hideDirected()">
-  <div style="position:relative;width:min(1100px,95vw);height:min(680px,88vh);background:rgba(18,18,22,0.55);backdrop-filter:blur(32px) saturate(120%) brightness(0.85);-webkit-backdrop-filter:blur(32px) saturate(120%) brightness(0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;overflow:hidden;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+  <!-- upright phones: asked to turn sideways first (dcFit) -->
+  <div id="dc-rotate" role="status" onclick="event.stopPropagation()">
+    <svg viewBox="0 0 40 40" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect class="r-cut" x="12" y="4.5" width="16" height="30" rx="3.5" transform="translate(0 -0.6)"/>
+      <rect class="r-lip" x="12" y="4.5" width="16" height="30" rx="3.5" transform="translate(0 0.7)"/>
+      <rect class="r-face" x="12" y="4.5" width="16" height="30" rx="3.5"/>
+      <path class="r-face" d="M18 30.5h4"/>
+    </svg>
+    <div class="r-title">Turn your phone<br>sideways</div>
+    <div class="r-sub">WORK is laid out for a wide screen.<br>It opens as soon as you turn.</div>
+  </div>
+  <div id="dc-panel" style="position:relative;width:min(1100px,95vw);height:min(680px,88vh);background:rgba(18,18,22,0.55);backdrop-filter:blur(32px) saturate(120%) brightness(0.85);-webkit-backdrop-filter:blur(32px) saturate(120%) brightness(0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;overflow:hidden;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
     <div class="dc-page" id="dc-page-tensay" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
       <div class="directed-body" style="overflow-y:auto;padding:40px;display:flex;align-items:flex-start;justify-content:flex-start;gap:32px;flex:1;">
         <div class="dc-carousel" id="dc-carousel">
