@@ -4790,6 +4790,8 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
   #dc-rotate .r-lip  { stroke: rgba(205,222,245,0.32); }
   #dc-rotate .r-face { stroke: var(--etch-lit, rgba(236,244,255,0.95)); filter: drop-shadow(0 0 6px rgba(140,200,255,0.45)); }
   #dc-rotate .r-title { font-family: 'Michroma', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--etch-lit); text-shadow: var(--etch-cut); line-height: 1.6; }
+  #dc-rotate .r-hint { font-family: 'Michroma', sans-serif; font-size: 8px; letter-spacing: 0.06em; line-height: 1.8; color: var(--etch-dim, rgba(150,170,200,0.7)); text-shadow: var(--etch-cut); padding-top: 12px; border-top: 1px solid rgba(140,173,224,0.14); width: 100%; }
+  #dc-rotate .r-hint b { font-weight: 400; color: var(--etch-face); }
   #dc-rotate .r-sub { font-family: 'Michroma', sans-serif; font-size: 9px; letter-spacing: 0.08em; color: var(--etch-face); text-shadow: var(--etch-cut); line-height: 1.7; }
   @keyframes dcTurn { 0%, 18% { transform: rotate(0deg); } 50%, 82% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
   @keyframes dcRotateIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
@@ -4814,6 +4816,15 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
   addEventListener('orientationchange', () => setTimeout(dcFit, 120));   // some phones report the new size a beat late
   if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', dcFit);
   addEventListener('DOMContentLoaded', dcFit);
+  // the card's hint for a rotation-locked phone, in that phone's own words
+  addEventListener('DOMContentLoaded', () => {
+    const h = document.getElementById('dc-rotate-hint');
+    if (!h) return;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    h.innerHTML = ios
+      ? 'Screen not turning? Turn off<br><b>Portrait Orientation Lock</b> in Control Centre.'
+      : 'Screen not turning? Turn on<br><b>Auto-rotate</b> in Quick Settings.';
+  });
   // phones get lighter copies of WORK's videos (name_m.mp4: at most 960px on
   // the long side, ~1 Mbps), sized for the scaled-down panel, so they start
   // and keep up on mobile data; desktop keeps the originals
@@ -4835,6 +4846,8 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
     </svg>
     <div class="r-title">Turn your phone<br>sideways</div>
     <div class="r-sub">WORK is laid out for a wide screen.<br>It opens as soon as you turn.</div>
+    <!-- rotation locked, turning does nothing: how to unlock it, worded for the phone (dcFit) -->
+    <div class="r-hint" id="dc-rotate-hint"></div>
   </div>
   <div id="dc-panel" style="position:relative;width:min(1100px,95vw);height:min(680px,88vh);background:rgba(18,18,22,0.55);backdrop-filter:blur(32px) saturate(120%) brightness(0.85);-webkit-backdrop-filter:blur(32px) saturate(120%) brightness(0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;overflow:hidden;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
     <div class="dc-page" id="dc-page-tensay" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
@@ -6835,7 +6848,7 @@ document.addEventListener('click', e => {
 <script src="ring.js?v=20261010e"></script>
 <!-- ico-breach.js: the Status iCO's hidden easter egg (click it six times in
      a row). Needs ico.js (its noise GLSL) and ring.js (icoRing hooks). -->
-<script src="ico-breach.js?v=20261010v"></script>
+<script src="ico-breach.js?v=20261010w"></script>
 
 <!-- menu-orbs.js: the ME / WORK / EXPERIENCE icons as live WebGL orbs (the
      PNGs stay as the fallback). eve-mesh.js holds EVE's packed mesh for ME. -->

@@ -32,7 +32,6 @@
   const mount = document.getElementById('ico-mount');
   if (!modal || !box || !mount) return;
 
-  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
   const sstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -1368,7 +1367,8 @@ uniform highp sampler3D uNz;
     if (ring() && ring().log) ring().log('CRIT', 'Containment breach · core 0x1C0');
     SFX.humOff(true);
     injectStyle();
-    if (REDUCED) return reducedBreach();
+    // the full breach plays for everyone, Reduce Motion or not: it only starts
+    // when someone taps the iCO six times on purpose
     G.setFull(true);
     G.makeComp();
     layout();
@@ -1654,19 +1654,6 @@ uniform highp sampler3D uNz;
     }
   }
 
-  function reducedBreach() {
-    showBios(true);
-    bios.textContent = '';
-    ['ECHO OS  ·  BIOS v0.1a  ·  Polyspheric Inc.', '', '[ RECOVERY ]  Unexpected shutdown', 'Shutdown cause  ··········  CORE BREACH', 'Lattice rebuild ··········  20/20', '', 'ECHO OS  ·  READY.']
-      .forEach(t => { const d = document.createElement('div'); d.textContent = t || ' '; bios.appendChild(d); });
-    bios.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
-    setTimeout(() => {
-      showBios(false);
-      if (ring() && ring().log) ring().log('INFO', 'Core rebuilt · lattice 20/20');
-      crack = crackTarget = 0; S.active = false; shieldOn(false);
-      trophy();
-    }, 2600);
-  }
   // the glass is whole again: the site's trophy (index.html's icoTrophy, once per visit)
   function trophy() { setTimeout(() => { if (typeof window.icoTrophy === 'function') window.icoTrophy(); }, 500); }
 
