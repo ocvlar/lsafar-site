@@ -615,6 +615,9 @@
       badge.style.bottom = (parseFloat(getComputedStyle(badge).bottom) - (frontY + reach + 2 - top)) + 'px';
       pb = pillBox();
     }
+    // the custom status line (#ver-status-note) follows the badge, just under it
+    const note = document.getElementById('ver-status-note');
+    if (note) note.style.bottom = badge.style.bottom ? (parseFloat(badge.style.bottom) - (PHONE.matches ? 13 : 24)) + 'px' : '';
 
     // Canvas extents above/below the iCO's center. The badge (and its orb's
     // light) is drawn in this canvas too, so keep room for it.
