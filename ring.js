@@ -595,9 +595,9 @@
       k = 0.6;
       ringPx = Math.max(ICO * k * 1.6, Math.min(S.size * ICO * k, (availW - 32) / 1.14, (availH - 24) / fH));
     }
-    // phones (Status D): the iCO and ring a size smaller, leaving room around
+    // phones (Status D): the iCO and ring a little smaller, leaving room around
     // the ring for the readings on their leaders
-    if (PHONE.matches) { k *= 0.68; ringPx *= 0.68; }
+    if (PHONE.matches) { k *= 0.8; ringPx *= 0.8; }
     const icoPx = ICO * k;
     wrap.style.width = wrap.style.height = icoPx + 'px';
     const wpp = 2 * R / ringPx; // world units per CSS px at the iCO's depth

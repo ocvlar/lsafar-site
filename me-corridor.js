@@ -54,6 +54,20 @@ scene.fog = new THREE.FogExp2(0x000000, 0.034);
 const panel = document.getElementById('me-corridor');
 const PW = () => Math.max(1, panel.clientWidth), PH = () => Math.max(1, panel.clientHeight);
 const camera = new THREE.PerspectiveCamera(58, PW()/PH(), 0.1, 900);
+// Phones: the chapter's text block is tall in the narrow panel and would sit
+// over the chapter's object, while the panel's top stayed empty. So the view
+// is shifted up (an off-axis projection: same size, same perspective, the
+// whole picture raised) and the object sits above its title.
+const PHONE_VIEW = matchMedia('(max-width: 768px)');
+const PHONE_LIFT = 0.3;   // NDC: about 15% of the panel's height
+function project(){
+  camera.updateProjectionMatrix();
+  if (PHONE_VIEW.matches){
+    camera.projectionMatrix.elements[9] = -PHONE_LIFT;
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+  }
+}
+project();
 
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:'high-performance' });
 renderer.setSize(PW(), PH(), false);
@@ -2722,7 +2736,7 @@ function tick(){
 
 new ResizeObserver(()=>{
   camera.aspect = PW()/PH();
-  camera.updateProjectionMatrix();
+  project();
   renderer.setSize(PW(), PH(), false);
 }).observe(panel);
 

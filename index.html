@@ -1609,7 +1609,12 @@
         transition: opacity 0.35s 0.15s ease !important;
       }
       #ew-cs-header { padding: 8px 0 6px !important; gap: 8px !important; }
-      #ew-cs-title { font-size: 11px !important; letter-spacing: 0.06em !important; gap: 6px !important; min-width: 0 !important; }
+      /* the section's title a step over its roles' (12px), as on desktop (17.5 over 16) */
+      #ew-cs-title { font-size: 13.5px !important; letter-spacing: 0.18em !important; gap: 6px !important; min-width: 0 !important; }
+      /* no "SELECT A NODE" under the wheel */
+      #ew-hint { display: none !important; }
+      /* CompTIA / HackTheBox: their etched badges at the size of the text around them */
+      #panel-experience .etched-chip .ec-mark { zoom: 0.66; }
       #ew-cs-dates { font-size: 11px !important; white-space: nowrap !important; letter-spacing: 0.06em !important; flex-shrink: 0 !important; }
       #ew-cs-body { padding: 4px 0 12px !important; }
       .ewp-toolkit { grid-template-columns: 1fr !important; gap: 8px !important; }
@@ -2457,20 +2462,21 @@
     #tri-btn, #ver-btn { gap: 7px; }
     .ps2-btn { width: 14px; height: 14px; top: 0.5px; }
   }
-  /* Phones: the trophy toast compact, centred under the date / clock row
-     (its inline styles are desktop's), in the phone popups' dark glass */
+  /* Phones: the trophy toast as on desktop (its inline styles: the grey glass,
+     the border, the shadow, a 48 px-class icon over two etched lines), a step
+     smaller and centred under the date / clock row; a long title wraps */
   @media (max-width: 768px) {
     #trophy-notif {
       top: 46px !important; right: auto !important; left: 50% !important; transform: translateX(-50%);
-      min-width: 0 !important; gap: 10px !important; padding: 7px 18px 7px 10px !important;
-      border-radius: 12px !important; background: rgba(18,18,22,0.82) !important;
-      border-color: rgba(255,255,255,0.07) !important; box-shadow: 0 8px 26px rgba(0,0,0,0.55) !important;
-      white-space: nowrap;
+      min-width: 0 !important; width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box;
+      gap: 12px !important; padding: 10px 16px 10px 12px !important;
     }
-    #trophy-notif img { width: 26px !important; height: 26px !important; }
-    #trophy-notif > div { gap: 3px !important; }
-    #trophy-notif > div > div:first-child { font-size: 6px !important; }
-    #trophy-notif > div > div:last-child { font-size: 8.5px !important; }
+    #trophy-notif img { width: 40px !important; height: 40px !important; }
+    #trophy-notif > div > div:first-child { font-size: 8px !important; }
+    #trophy-notif > div > div:last-child { font-size: 11px !important; line-height: 1.35; }
+    /* the ECHO OS splash: its glow within the screen (desktop's 600 x 300 ran
+       off both sides and spread into a flat band) */
+    #psy-bloom { width: 104vw !important; height: 78vw !important; }
   }
 
 </style>
@@ -6385,7 +6391,7 @@ document.addEventListener('click', e => {
     #ver-activity .act-row:nth-child(1) { display: none; }   /* the latest two entries only */
     #ver-activity .act-l { width: 4.6em; }
     /* the ring and its readings start below the log, whatever the screen height */
-    #ver-modal-content { padding-top: 0; margin-top: -21px; }   /* with the popup at Message's height: equal space above and below the ring group */
+    #ver-modal-content { padding-top: 0; margin-top: -3px; }   /* the ring group a little below the popup's centre, clear of the LIVE log */
     /* the same size as the Message popup on phones (358 x 371), the ring centred in it */
     #ver-modal-box { min-height: 371px; }
     #ver-modal-box .ro-k { font-size: 4px; letter-spacing: 0.32em; }
@@ -6682,7 +6688,7 @@ document.addEventListener('click', e => {
      script above because it reads the status badge that script renders. -->
 <!-- ?v= busts browser caches (GitHub Pages caches for 10 min): bump it on each deploy that changes these files -->
 <script src="etched.js?v=20261010a"></script>
-<script src="ring.js?v=20261010c"></script>
+<script src="ring.js?v=20261010d"></script>
 <!-- ico-breach.js: the Status iCO's hidden easter egg (click it six times in
      a row). Needs ico.js (its noise GLSL) and ring.js (icoRing hooks). -->
 <script src="ico-breach.js?v=20261010v"></script>
@@ -6696,7 +6702,7 @@ document.addEventListener('click', e => {
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
 <script src="message-popup.js?v=20261010b"></script>
 <!-- me-corridor.js: the ME panel's neural corridor (needs THREE) -->
-<script src="me-corridor.js?v=20261010b"></script>
+<script src="me-corridor.js?v=20261010c"></script>
 
 </body>
 </html>
