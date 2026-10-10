@@ -2,8 +2,9 @@
  * Menu orbs: the ME, WORK and EXPERIENCE icons as live WebGL orbs.
  *
  * Built and tuned in the "Menu Orbs" artifact, then ported here. Each orb is
- * a glass sphere (faint caustic water, dark navy band, blue rim, a rippling
- * ring portal at the bottom) around a subject:
+ * a holographic glass sphere (Holographic · Ice: near-black inside with a faint grid,
+ * scan lines and drifting motes, an ice-cyan rim running into white, a projector
+ * ring and soft beam at the bottom) around a subject:
  *   ME          EVE (eve-mesh.js) as a hologram
  *   WORK        a lite copy of ico.js's iCO (plasma + dispersion glass)
  *   EXPERIENCE  the 8 MB memory card
@@ -49,6 +50,12 @@
   renderer.setPixelRatio(1);
   renderer.setSize(RS, RS, false);
   renderer.setClearColor(0x000000, 0);
+  // everything inside an orb, drawn before its glass so the glass can refract it
+  // (one target shared by the three orbs; multisampled where WebGL2 allows)
+  const RT_OPTS = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
+  const shellRT = renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget
+    ? Object.assign(new THREE.WebGLMultisampleRenderTarget(RS, RS, RT_OPTS), { samples: 4 })
+    : new THREE.WebGLRenderTarget(RS, RS, RT_OPTS);
 
   // ── shared GLSL ──
   const NOISE = `
@@ -98,29 +105,38 @@
     return new THREE.CanvasTexture(c);
   })();
 
-  // ── the orb every icon shares: water wall, ring portal + glow, front glass ──
+  // ── the orb every icon shares: Holographic · Ice ──
+  // Near-black interior with a faint grid and rising scan lines, a crisp ice-cyan
+  // rim running into white, a slow light sweep, motes drifting up, and a thin
+  // projector ring with a soft beam under the subject. (Built in the Menu Orb Lab.)
   function makeOrb(opts) {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
     camera.position.set(0, 0, 3.95);
     const U = { uT: { value: 0 }, uLit: { value: 0 }, uGlow: { value: new THREE.Vector3(0, -0.58, 0.1) } };
     const spin = new THREE.Group(); scene.add(spin);
+    const ticks = [];
 
-    // inner far wall: deep water with moving caustics, brighter toward the glow
+    // inner far wall: near-black, a breath of deep blue toward the projector below,
+    // a faint grid (12 meridians, 7 parallels) and fine scan lines drifting up
     const wall = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), new THREE.ShaderMaterial({
       uniforms: U, side: THREE.BackSide, vertexShader: VS,
-      fragmentShader: NOISE + `
+      fragmentShader: `
         uniform float uT, uLit; uniform vec3 uGlow;
         varying vec3 vObj, vW, vN, vWN, vV;
         void main(){
           float face = abs(dot(normalize(vN), normalize(vV)));
-          float c = caustic(vObj, uT);
           float low = smoothstep(0.9, -0.9, vW.y);
-          vec3 col = mix(vec3(0.014,0.03,0.07), vec3(0.1,0.21,0.42), low*0.8);   // navy-black into a soft blue haze, like the ECHO OS splash
-          col += vec3(0.59,0.84,1.0) * c * 0.22 * (0.55 + 0.45*low) * (0.85 + 0.35*uLit);
-          float g = exp(-pow(length(vW - uGlow*1.6), 2.0) * 2.2);
-          col += vec3(0.45,0.8,1.0) * g * (0.36 + 0.2*uLit);
-          col *= mix(0.46 + 0.29*uLit, 1.0, smoothstep(0.0, 0.55, face));   // edge darkening lifts on hover
+          vec3 col = mix(vec3(0.004,0.007,0.016), vec3(0.012,0.04,0.1), low*0.7);
+          float lon = abs(fract(atan(vObj.z, vObj.x) / 6.2831 * 12.0) - 0.5);
+          float lat = abs(fract(vObj.y * 3.5) - 0.5);
+          float grid = max(1.0 - smoothstep(0.0, 0.035, 0.5 - lon), 1.0 - smoothstep(0.0, 0.045, 0.5 - lat));
+          float scan = pow(0.5 + 0.5*sin(vW.y*120.0 - uT*2.2), 10.0);
+          col += vec3(0.32,0.66,1.0) * (grid*0.07 + scan*0.035) * (0.65 + 0.35*uLit) * (0.4 + 0.6*face);
+          // the subject's light filling the orb: brightest behind it, spreading out to the glass
+          float r = length(vW.xy);
+          col += vec3(0.22,0.5,1.0) * exp(-r*r*2.2)*0.05 * (1.0 + 0.4*uLit) * (0.94 + 0.06*sin(uT*0.9));
+          col *= mix(0.8 + 0.15*uLit, 1.0, smoothstep(0.0, 0.55, face));   // only a little darker at the edge: more and it rings the orb
           gl_FragColor = vec4(col, 1.0);
         }`,
     }));
@@ -128,51 +144,150 @@
 
     // bottom glow
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-    glow.material.color.setRGB(0.8, 0.9, 1.0);
-    glow.scale.setScalar(0.55); glow.position.set(0, -0.64, 0.15); glow.renderOrder = 2;
-    scene.add(glow);
+    glow.material.color.setRGB(0.55, 0.85, 1.0);
+    glow.scale.setScalar(0.3); glow.position.set(0, -0.64, 0.15); glow.renderOrder = 2;
+    // (kept for the frame loop, but not shown: the bottom stays simple, just the ring)
 
-    // ring portal under the subject: bright core with rings rippling out
-    const portal = new THREE.Mesh(new THREE.CircleGeometry(0.42, 48), new THREE.ShaderMaterial({
+    // the projector under the subject: a thin ring and its lit core
+    const portal = new THREE.Mesh(new THREE.CircleGeometry(0.42, 64), new THREE.ShaderMaterial({
       uniforms: U, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
       fragmentShader: `
         uniform float uT, uLit; varying vec2 vUv;
         void main(){
           float r = length(vUv - 0.5) * 2.0;
-          float rings = pow(0.5 + 0.5*sin(r*34.0 - uT*2.4), 10.0);
-          float a = rings * (1.0 - r) * 0.32 + exp(-r*r*18.0) * 0.42;
-          gl_FragColor = vec4(vec3(0.62,0.86,1.0) * a * (0.8 + 0.4*uLit), 1.0);
+          float ring = exp(-pow((r - 0.78) * 34.0, 2.0)) * (0.75 + 0.25*sin(uT*1.6));
+          gl_FragColor = vec4(vec3(0.55,0.85,1.0) * ring*0.4 * (0.85 + 0.4*uLit), 1.0);
         }`,
     }));
     portal.rotation.x = -Math.PI/2 + 0.32; portal.position.set(0, -0.66, 0.1); portal.renderOrder = 1.5;
-    spin.add(portal);
+    // the projector ring is left out too: nothing at the bottom
 
-    // front glass: dark navy band inside a bright rim
-    const shell = new THREE.Mesh(new THREE.SphereGeometry(1.0, 96, 64), new THREE.ShaderMaterial({
-      uniforms: U, transparent: true, depthWrite: false, vertexShader: VS,
-      fragmentShader: NOISE + `
-        uniform float uT, uLit;
-        varying vec3 vObj, vW, vN, vWN, vV;
+    // a soft beam rising from the projector ring
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.3, 0.95, 48, 1, true), new THREE.ShaderMaterial({
+      uniforms: U, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: `varying vec2 vUv; varying vec3 vN, vV; void main(){ vUv = uv; vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vV = -mv.xyz; gl_Position = projectionMatrix*mv; }`,
+      fragmentShader: `
+        uniform float uT, uLit; varying vec2 vUv; varying vec3 vN, vV;
         void main(){
-          vec3 N = normalize(vN), V = normalize(vV);
-          float NdV = max(dot(N,V), 0.0);
-          float e = 1.0 - NdV;
-          // dark band inside the rim; on hover it fades and the rim widens, so the
-          // orb's light runs straight into the halo instead of a dark ring
-          float band = smoothstep(0.45, 0.8, e) * (1.0 - smoothstep(0.9, 0.99, e)) * (1.0 - 0.75*uLit);
-          float rim = pow(smoothstep(0.82 - 0.06*uLit, 1.0, e), 2.0);
-          float c = caustic(vObj*1.3 + 7.0, uT*0.8) * smoothstep(0.3, 0.85, e);
-          vec3 col = vec3(0.0, 0.02, 0.08) * band
-                   + vec3(0.72, 0.88, 1.0) * rim * (0.8 + 0.12*uLit)
-                   + vec3(0.59, 0.84, 1.0) * c * 0.07;
-          float a = band*0.5 + rim*0.9 + c*0.05;
-          gl_FragColor = vec4(col / max(a, 0.001), clamp(a, 0.0, 1.0));
+          float side = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+          float up = pow(1.0 - vUv.y, 1.6);
+          float flick = 0.9 + 0.1*sin(uT*7.0 + vUv.y*9.0);
+          gl_FragColor = vec4(vec3(0.35,0.7,1.0) * up * (0.025 + side*0.07) * flick * (0.8 + 0.5*uLit), 1.0);
         }`,
     }));
-    shell.renderOrder = 3; scene.add(shell);
+    beam.position.set(0, -0.66 + 0.475, 0.1); beam.rotation.x = 0.32; beam.renderOrder = 1.52;
+    // the beam is left out: with the glass bending it, it bloated the bottom
 
-    return { scene, camera, U, spin, glow, shell, lit: 0, hover: false, ...opts };
+    // front glass: the iCO's glass (ico.js, as in Status), on a sphere. Everything
+    // inside the orb is drawn first (shellRT); the glass refracts it with a slight
+    // colour split, reflects it, adds the iCO's rim, bevel and caustic, and lays that
+    // over the straight view by its fresnel alpha, as the iCO's glass does over the
+    // page. Without the iCO's pinpoint lights (a stray white dot on a smooth ball).
+    // Chosen in the Glass Orb Lab. It lives on layer 1, so the inside pass leaves it out.
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(1.0, 96, 64), new THREE.ShaderMaterial({
+      uniforms: Object.assign({ bgTex: { value: shellRT.texture }, res: { value: new THREE.Vector2(RS, RS) } }, U),
+      vertexShader: VS,
+      fragmentShader: `
+        uniform float uT, uLit; uniform sampler2D bgTex; uniform vec2 res;
+        varying vec3 vObj, vW, vN, vWN, vV;
+        float fresnelSchlick(float c, float f0){ return f0 + (1.0-f0)*pow(clamp(1.0-c,0.0,1.0),5.0); }
+        // samples stay inside the orb's disc: past it the inside image is empty, and
+        // the bent rays near the edge would pull that emptiness in as a dark outline
+        vec3 tex(vec2 p){ vec2 d = p - 0.5; float l = length(d); p = 0.5 + d * min(1.0, 0.44 / max(l, 1e-4)); return texture2D(bgTex, p).rgb; }
+        void main(){
+          vec3 N = normalize(vN), V = normalize(vV);
+          float NdV = max(dot(N,V), 0.001);
+          float edge = pow(1.0 - NdV, 6.0) * 0.6;          // a sphere has no facet edges: its silhouette is the bevel
+          float fresnel = fresnelSchlick(NdV, 0.04);
+          vec2 uv = gl_FragCoord.xy / res;
+          // how far each ray bends from straight through (+V cancels the view's own slant)
+          vec3 rR = refract(-V,N,1.0/1.47), rG = refract(-V,N,1.0/1.50), rB = refract(-V,N,1.0/1.53);
+          vec3 refl = reflect(-V,N);
+          float rs = 0.11*(1.0 + edge*0.3);
+          vec3 refracted = vec3(
+            tex(uv + (rR.xy + V.xy)*rs*1.04).r,
+            tex(uv + (rG.xy + V.xy)*rs).g,
+            tex(uv + (rB.xy + V.xy)*rs*0.96).b);
+          vec3 straight = tex(uv);
+          vec3 reflected = tex(uv + (refl.xy - V.xy)*0.077);
+          float caustic = pow(max(dot(rG, vec3(0.0,0.0,-1.0)),0.0),4.0)*1.5;
+          caustic *= 0.8 + 0.2*sin(uT*2.0 + dot(N, vec3(1.7,2.3,0.5))*6.0);
+          vec3 L1 = normalize(vec3(-0.5,0.85,0.6));
+          float rim = pow(1.0-NdV, 3.5);
+          vec3 rimCol = vec3(0.6,0.66,0.9)*rim*0.22*(1.0 + 0.3*uLit);   // softer than the iCO's: on a sphere it rings the whole edge
+          float bevelSpec = edge*(0.3 + 0.5*pow(max(dot(reflect(-L1,N),V),0.0),16.0));
+          vec3 bevelCol = vec3(0.75,0.82,1.0)*bevelSpec*0.35*(1.0 + 0.3*uLit);
+          vec3 glass = refracted*(1.2+caustic*0.5)*(1.0-fresnel*0.5) + reflected*fresnel*0.45 + vec3(0.60,0.65,0.85)*fresnel*0.28
+                     + rimCol + bevelCol + refracted*caustic*0.35 + vec3(0.05,0.08,0.14)*rim*0.3;
+          float alpha = clamp(mix(0.32,0.85,fresnel) + edge*0.35 + caustic*0.1, 0.22, 0.97);
+          vec3 col = mix(straight, glass*1.15, alpha);
+          // the very edge feathers into the page instead of ending on a hard line
+          float feather = smoothstep(0.0, 0.3, NdV);
+          gl_FragColor = vec4(col * feather, feather);   // premultiplied
+        }`,
+    }));
+    shell.material.transparent = true; shell.material.depthWrite = false;
+    Object.assign(shell.material, { blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+      blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
+    shell.renderOrder = 3; shell.layers.set(1); scene.add(shell);
+
+    // depth inside: an inner grid shell turning slower than the wall, and motes of
+    // light drifting up at different depths (near = bigger, brighter)
+    const innerGrid = new THREE.Mesh(new THREE.SphereGeometry(0.7, 64, 40), new THREE.ShaderMaterial({
+      uniforms: U, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, vertexShader: VS,
+      fragmentShader: `
+        uniform float uT, uLit; varying vec3 vObj, vW, vN, vWN, vV;
+        void main(){
+          float face = abs(dot(normalize(vN), normalize(vV)));
+          float lon = abs(fract(atan(vObj.z, vObj.x) / 6.2831 * 10.0) - 0.5);
+          float lat = abs(fract(vObj.y * 4.5) - 0.5);
+          float grid = max(1.0 - smoothstep(0.0, 0.03, 0.5 - lon), 1.0 - smoothstep(0.0, 0.04, 0.5 - lat));
+          // brightest edge-on (a curved lattice reads at its silhouette), faint face-on
+          float a = grid * (0.04 + 0.1*pow(1.0 - face, 2.0)) * (0.7 + 0.4*uLit);
+          gl_FragColor = vec4(vec3(0.4,0.75,1.0) * a, 1.0);
+        }`,
+    }));
+    innerGrid.renderOrder = 1.45; spin.add(innerGrid);
+    ticks.push(t => { innerGrid.rotation.y = -t * 0.12; });
+    const NM = 52, pos = new Float32Array(NM * 3), seed = new Float32Array(NM);
+    for (let i = 0; i < NM; i++) {
+      const r = 0.82 * Math.cbrt(Math.random()), th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+      pos[i*3] = r * Math.sin(ph) * Math.cos(th); pos[i*3+1] = r * Math.cos(ph); pos[i*3+2] = r * Math.sin(ph) * Math.sin(th); seed[i] = Math.random();
+    }
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    pg.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+    const motes = new THREE.Points(pg, new THREE.ShaderMaterial({
+      uniforms: Object.assign({ uPx: { value: RS } }, U), transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+      vertexShader: `
+        uniform float uT, uPx; attribute float aSeed; varying float vA;
+        void main(){
+          vec3 p = position;
+          p.y = mod(p.y + 0.8 + uT*(0.03 + 0.04*aSeed), 1.6) - 0.8;      // drift up, wrap
+          p.x += sin(uT*0.4 + aSeed*20.0)*0.02;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          float near = smoothstep(-0.8, 0.8, p.z);
+          gl_PointSize = uPx * (0.006 + 0.012*near) * (3.95 / -mv.z);
+          vA = (0.25 + 0.75*near) * (1.0 - smoothstep(0.62, 0.8, length(p.xz))) * smoothstep(0.8, 0.6, abs(p.y)) * (0.6 + 0.4*sin(uT*1.7 + aSeed*30.0));
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform float uLit; varying float vA;
+        void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;
+          gl_FragColor = vec4(vec3(0.6,0.88,1.0) * pow(1.0 - d*2.0, 1.6) * vA * (0.75 + 0.35*uLit), 1.0); }`,
+    }));
+    motes.renderOrder = 1.48; spin.add(motes);
+
+    // the same light in the volume between the subject and the glass: a soft haze
+    // from the centre that fills the inside (the haze texture fades out at its edge)
+    const haze = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true }));
+    haze.material.color.setRGB(0.3, 0.62, 1.0);
+    haze.scale.setScalar(2.0); haze.renderOrder = 1.46;
+    spin.add(haze);
+    ticks.push(t => { haze.material.opacity = (0.06 + 0.03*U.uLit.value) * (0.94 + 0.06*Math.sin(t*0.9)); });
+
+    return { scene, camera, U, spin, glow, shell, lit: 0, hover: false, shellTick: t => ticks.forEach(f => f(t)), ...opts };
   }
 
   // ── ME: EVE ──
@@ -181,7 +296,7 @@
   // Positions are packed as 16-bit, normals as 8-bit, then base64.
   const EVE = window.EVE_MESH;   // eve-mesh.js
   // EVE's pose and finish, as set in the Menu Orbs artifact
-  const EVE_DEFAULTS = { x: -0.1, y: 0.15, size: 1.28, facing: 282, lean: 1, tilt: 0, sway: 25, finish: 'holo' };
+  const EVE_DEFAULTS = { x: 0, y: 0, size: 1.28, facing: 282, lean: 1, tilt: 0, sway: 25, finish: 'holo' };
   function eveGeometry() {
     const raw = Uint8Array.from(atob(EVE.b), c => c.charCodeAt(0)).buffer;
     const q = new Uint16Array(raw, 0, EVE.n * 3);
@@ -231,7 +346,7 @@
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
-    // hologram: iridescent film that shifts with the view, fine scanlines,
+    // hologram: iridescent film that shifts with the view,
     // a slow bright band sweeping up, bright edges; additive so it glows
     const holo = new THREE.ShaderMaterial({
       uniforms: o.U, vertexShader: VS,
@@ -244,17 +359,23 @@
           float NdV = abs(dot(N, V));
           float fres = pow(1.0 - NdV, 2.0);
           float hue = fract(dot(normalize(vWN), vec3(0.3, 0.5, 0.2)) + fres * 0.6 + uT * 0.05);
-          vec3 irid = 0.5 + 0.5 * cos(6.2831 * (hue + vec3(0.0, 0.33, 0.67)));
-          irid = mix(irid, vec3(0.45, 0.8, 1.0), 0.58);
-          float scan = 0.8 + 0.2 * sin(vW.y * 260.0 - uT * 6.0);
+          // the site's ice blue (as the Status iCO and the arc): deep blue into ice
+          // cyan as the film shifts, near-white ice toward the edges
+          vec3 irid = mix(vec3(0.14, 0.36, 0.98), vec3(0.5, 0.8, 1.0), 0.5 + 0.5 * cos(6.2831 * hue));
+          irid = mix(irid, vec3(0.78, 0.9, 1.0), 0.3 * fres);
           float band = pow(1.0 - fract(vW.y * 1.2 - uT * 0.35), 18.0);
           float flicker = 0.94 + 0.06 * sin(uT * 37.0) * sin(uT * 13.0);
-          vec3 col = irid * (0.3 + fres * 1.6) * scan + vec3(0.6, 0.9, 1.0) * band * 0.45;
+          vec3 col = irid * (0.3 + fres * 1.6) + vec3(0.65, 0.85, 1.0) * band * 0.45;   // no scan lines on her
           gl_FragColor = vec4(col * flicker * (0.95 + 0.25 * uLit), 1.0);
         }`,
     });
     if (!EVE) return o;   // no mesh data: the orb still renders, just empty
     const mesh = new THREE.Mesh(eveGeometry(), mat);
+    // a dark body under the hologram: she's additive light, so without it the
+    // wall's grid and drifting scan lines showed straight through her
+    const body = new THREE.Mesh(mesh.geometry, new THREE.MeshBasicMaterial({ color: 0x01030a, transparent: true, opacity: 0.85, depthWrite: false }));
+    body.renderOrder = 2.19;
+    mesh.add(body);
     mesh.quaternion.set(0, 0.9312653541564941, 0, 0.36434170603752136);   // the glb node's own rotation
     const inner = new THREE.Group(); inner.add(mesh);
     const box = new THREE.Box3().setFromObject(inner);
@@ -317,11 +438,11 @@
     const o = makeOrb({ kind: 'work' });
     const rt = new THREE.WebGLRenderTarget(Math.round(RS / 3), Math.round(RS / 3), { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     const gem = new THREE.Group();
-    gem.scale.setScalar(0.56); gem.position.y = 0.06;
+    gem.scale.setScalar(0.56); gem.position.y = 0;
     o.spin.add(gem);
 
     const plasmaMat = new THREE.ShaderMaterial({
-      uniforms: { uT: { value: 0 }, uCD: { value: new THREE.Color(0x0c1c55) }, uCM: { value: new THREE.Color(0x7a66d8) }, uCB: { value: new THREE.Color(0x98a6bf) } },
+      uniforms: { uT: { value: 0 }, uCD: { value: new THREE.Color(0x020a24) }, uCM: { value: new THREE.Color(0x1a4fe0) }, uCB: { value: new THREE.Color(0x5a9cff) } },
       vertexShader: `varying vec3 vPos,vN,vV;void main(){vPos=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
       fragmentShader: ICO_NOISE + `
         uniform float uT; uniform vec3 uCD,uCM,uCB; varying vec3 vPos,vN,vV;
@@ -330,14 +451,14 @@
           vec2 q=vec2(fbm(p+vec3(0.,uT*.05,0.)), fbm(p+vec3(5.2,1.3,2.8)+uT*.05));
           float d=fbm(p+2.*vec3(q, q.x*0.5));
           float t=(d+.4)*.8;
-          float alpha=smoothstep(0.05,.7,t);
+          float alpha=smoothstep(0.22,.8,t);   // more of it falls away: dark gaps between the bright streams
           float side=smoothstep(-0.08,0.08,vPos.y+q.x*0.15);
           vec3 mainCol=mix(uCM,uCB,side);
-          vec3 col=mix(uCD,mainCol,smoothstep(0.05,.5,t));
+          vec3 col=mix(uCD*0.5,mainCol,smoothstep(0.2,.6,t));
           col=mix(col,mainCol*1.15,smoothstep(.5,.8,t));
-          col=mix(col,vec3(0.8,0.84,0.92),smoothstep(.85,1.,t));   // peaks stay silver, not white
+          col=mix(col,vec3(0.75,0.88,1.0),smoothstep(.85,1.,t));   // peaks pale ice, not white
           float f=dot(normalize(vN),normalize(vV));
-          gl_FragColor=vec4(col*1.45, alpha*(.05+.95*(f+1.)*.5));
+          gl_FragColor=vec4(col*1.3, alpha*(.05+.95*(f+1.)*.5));   // dimmer than ico.js's 1.45: in the orb it read as a blown-out core
         }`,
       transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
     });
@@ -427,15 +548,17 @@
       plasma.rotation.y = t*0.08;
       plasmaMat.uniforms.uT.value = t*0.78;
       glassMat.uniforms.t.value = t;
-      gem.position.y = 0.06 + Math.sin(t*0.8)*0.02;
+      gem.position.y = Math.sin(t*0.8)*0.02;
     };
-    // two passes like ico.js: everything but the glass into the RT, then the glass reads it
-    o.render = () => {
-      ico.visible = false; o.shell.visible = false;
+    // two passes like ico.js: everything but the iCO's glass into its RT, then the
+    // inside with the iCO into the orb's target (the orb's glass refracts that)
+    o.renderInner = (target) => {
+      ico.visible = false;
       renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 1); renderer.clear();
       renderer.render(o.scene, o.camera);
-      renderer.setRenderTarget(null); renderer.setClearColor(0x000000, 0);
-      ico.visible = true; o.shell.visible = true;
+      renderer.setClearColor(0x000000, 0);
+      ico.visible = true;
+      renderer.setRenderTarget(target); renderer.clear();
       renderer.render(o.scene, o.camera);
     };
     return o;
@@ -521,8 +644,10 @@
           float NdV = abs(dot(N, V));
           float fres = pow(1.0 - NdV, 2.0);
           float hue = fract(dot(normalize(vWN), vec3(0.3, 0.5, 0.2)) + fres * 0.6 + uT * 0.05);
-          vec3 irid = 0.5 + 0.5 * cos(6.2831 * (hue + vec3(0.0, 0.33, 0.67)));
-          irid = mix(irid, vec3(0.45, 0.8, 1.0), 0.58);
+          // the site's ice blue (as the Status iCO and the arc): deep blue into ice
+          // cyan as the film shifts, near-white ice toward the edges
+          vec3 irid = mix(vec3(0.14, 0.36, 0.98), vec3(0.5, 0.8, 1.0), 0.5 + 0.5 * cos(6.2831 * hue));
+          irid = mix(irid, vec3(0.78, 0.9, 1.0), 0.3 * fres);
           float scan = 0.9 + 0.1 * sin(vW.y * 260.0 - uT * 6.0);   // half EVE's: a flat card shows every line
           float band = pow(1.0 - fract(vW.y * 1.2 - uT * 0.35 + 0.4), 18.0);
           float flicker = 0.94 + 0.06 * sin(uT * 37.0) * sin(uT * 13.0);
@@ -530,21 +655,21 @@
           vec4 t = texture2D(uTex, uv);
           float ink = max(t.r, max(t.g, t.b)) * t.a;
           float face = (gl_FrontFacing && vObj.z > 0.055) ? 1.0 : 0.0;   // label on the front only
-          vec3 col = irid * (0.07 + fres * 1.5);
-          col += mix(irid, vec3(0.9, 0.97, 1.0), 0.8) * ink * face * 1.3;   // the label, bright enough to read over the water
-          col = col * scan + vec3(0.6, 0.9, 1.0) * band * 0.14;   // the sweeping band, softer than on EVE
+          vec3 col = irid * (0.04 + fres * 1.0);
+          col += mix(irid, vec3(0.9, 0.96, 1.0), 0.8) * ink * face * 0.7;   // the label, bright enough to read
+          col = col * scan + vec3(0.65, 0.85, 1.0) * band * 0.14;   // the sweeping band, softer than on EVE
           // lit from the portal below: the bottom edge catches its light, fading upward
           float up = exp(-max(vW.y - uGlow.y, 0.0) * 5.0);
-          col += vec3(0.45, 0.8, 1.0) * up * (0.05 + fres * 0.7) * (0.8 + 0.4 * uLit);
+          col += vec3(0.45, 0.75, 1.0) * up * (0.05 + fres * 0.7) * (0.8 + 0.4 * uLit);
           gl_FragColor = vec4(col * flicker * (0.95 + 0.25 * uLit), 1.0);
         }`,
     }));
     // floats clear of the portal like the iCO (bottom edge ~0.2 above it), bobbing the same way
-    card.scale.setScalar(0.74); card.renderOrder = 2.2;
+    card.scale.setScalar(0.7); card.renderOrder = 2.2;   // about EVE's height
     o.spin.add(card);
     o.tick = (t) => {
-      card.rotation.y = Math.sin(t*0.5)*0.1; card.rotation.x = Math.sin(t*0.37)*0.04;
-      card.position.y = 0.1 + Math.sin(t*0.8)*0.02;
+      card.rotation.y = Math.sin(t*0.3)*0.44; card.rotation.x = Math.sin(t*0.37)*0.04;   // turns to and fro like EVE (25 deg)
+      card.position.y = Math.sin(t*0.8)*0.02;
     };
     return o;
   }
@@ -581,6 +706,9 @@
     if (lost || menuWrap.style.opacity !== '1') return;
     if (drawn && covered()) { last = now; return; }
     if (now - last < FRAME_MS - 2) return;
+    draw(now);
+  }
+  function draw(now) {
     const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
     last = now;
     if (!reduce) t += dt;
@@ -598,9 +726,17 @@
 
     orbs.forEach((o, i) => {
       o.U.uT.value = t; o.U.uLit.value = o.lit;
-      o.glow.material.opacity = 0.45 + 0.2 * o.lit;
+      o.glow.material.opacity = 0.22 + 0.13 * o.lit;
       o.tick(t);
-      if (o.render) o.render(); else renderer.render(o.scene, o.camera);
+      o.shellTick(t);
+      // the inside (layer 0) into shellRT, then only the glass (layer 1), which shows it
+      o.camera.layers.set(0);
+      if (o.renderInner) o.renderInner(shellRT);
+      else { renderer.setRenderTarget(shellRT); renderer.clear(); renderer.render(o.scene, o.camera); }
+      renderer.setRenderTarget(null); renderer.clear();
+      o.camera.layers.set(1);
+      renderer.render(o.scene, o.camera);
+      o.camera.layers.set(0);
       const c = canvases[i];
       ctxs[i].clearRect(0, 0, c.width, c.height);
       ctxs[i].drawImage(renderer.domElement, 0, 0, c.width, c.height);
@@ -608,4 +744,8 @@
     if (!drawn) { drawn = true; boxes.forEach(b => b.classList.add('has-orb3d')); }
   }
   requestAnimationFrame(frame);
+  // The first draw compiles the orbs' shaders, a ~0.8 s freeze in Firefox:
+  // done during the boot splash (index.html's echoBoot), still hidden,
+  // instead of as the menu fades in.
+  if (window.echoBoot) window.echoBoot.later(() => { if (!lost && !drawn) draw(performance.now()); });
 })();

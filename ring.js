@@ -135,7 +135,11 @@
     pm.dispose(); tex.dispose();
     return env;
   }
-  scene.environment = makeEnv(P.env);
+  // Its PMREM compile freezes Firefox for ~1 s, so it's built during the
+  // boot splash (index.html's echoBoot), not while the BIOS types; or at the
+  // first open, if that ever comes first.
+  const envNow = () => { if (!scene.environment) scene.environment = makeEnv(P.env); };
+  if (window.echoBoot) window.echoBoot.later(envNow); else envNow();
 
   const key = new THREE.DirectionalLight(0xffffff, 1.2);
   key.position.set(2, 4, 5);
@@ -1437,11 +1441,40 @@
   // The same brief ring flash the iCO click gives, as quiet feedback.
   function flash() { flashStart = performance.now() * 0.001; }
 
+  // For the iCO breach easter egg (ico-breach.js): log a line, freeze the ring
+  // while the egg has taken over the popup, and render the ring as it stands
+  // so the caller can read it in the same task (with no ctx, the caller
+  // uploads the canvas to its own WebGL; with a 2D ctx, it's copied there).
+  function capture(ctx, x, y, w, h) {
+    if (!isOpen || !view.ringPx) return null;
+    renderer.render(scene, camera);
+    if (ctx) ctx.drawImage(gl, x, y, w, h);
+    return gl;
+  }
+  function hold(on) { if (on) stop(); else start(); }
+  // the ring's joints on screen (client px): metal the breach's arcs strike
+  function joints() {
+    if (!isOpen || !view.ringPx) return [];
+    const br = box.getBoundingClientRect();
+    group.updateMatrixWorld();
+    const out = [];
+    for (let k = 0; k < S.joints; k++) {
+      ringPointPx(THREE.MathUtils.degToRad((360 / S.joints) * k + 180 / S.joints) + ring.rotation.z, pA);
+      out.push({ x: br.left + pA.x, y: br.top + pA.y });
+    }
+    return out;
+  }
+
   window.icoRing = {
     setStatus,
     jointAt,
     flash,
+    log: (level, text) => push(level, text),
+    hold,
+    capture,
+    joints,
     open() {
+      envNow();
       isOpen = true;
       window.__icoPaused = false;
       lastTick = 0;   // fresh frame-rate window for this opening

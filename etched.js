@@ -125,7 +125,8 @@
     g.beginPath(); g.arc(sx, sy, orbR, 0, Math.PI * 2); g.fill();
     g.globalCompositeOperation = 'source-over';
 
-    const halo = host.querySelector('.act-halo');
+    let halo = host.querySelector('.act-halo');
+    if (!halo) { halo = document.createElement('span'); halo.className = 'act-halo'; host.appendChild(halo); }
     const hd = dotR * 5; // same size as ONLINE's halo sprite
     Object.assign(halo.style, { width: hd + 'px', height: hd + 'px', left: (dotR - hd / 2) + 'px', top: (h / 2 - hd / 2) + 'px' });
     halo.style.setProperty('--halo-rgb', lit ? rgb : '140,175,220');
