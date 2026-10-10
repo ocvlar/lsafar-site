@@ -1217,8 +1217,8 @@
       #ocu-ig-btn svg, #sf-ig-btn svg { width: 15px; height: 15px; }
       #ocu-ig-btn::after, #sf-ig-btn::after { content: ""; position: absolute; inset: -10px; }
       #ewp-ig-btn::after, #skills-yap-btn::after { content: ""; position: absolute; inset: -12px; }
-      #skills-yap-btn { width: 18px; height: 18px; margin-left: -3px; }
-      #skills-yap-btn svg { width: 10px; height: 10px; }
+      #skills-yap-btn { width: 20px; height: 20px; margin-left: -2px; }
+      #skills-yap-btn svg { width: 13px; height: 13px; }   /* in step with the 12px skill names */
       #ewp-ig-btn::before, #skills-yap-btn::before { inset: -3px; }
     }
     .panel-title {
@@ -1636,11 +1636,23 @@
       #panel-experience .etched-chip .ec-mark { zoom: 0.66; }
       #ew-cs-dates { font-size: 11px !important; white-space: nowrap !important; letter-spacing: 0.06em !important; flex-shrink: 0 !important; }
       #ew-cs-body { padding: 4px 0 12px !important; }
-      .ewp-toolkit { grid-template-columns: 1fr !important; gap: 8px !important; }
+      /* SKILLS: room to breathe between skills (two columns from 480px down, below) */
+      .ewp-toolkit { grid-template-columns: 1fr !important; gap: 18px !important; }
+      #panel-experience .ewp-tool-name { margin-bottom: 5px !important; }
+      /* EXPERIMENTING's HackTheBox / CompTIA drop-downs, in balance with the
+         text around them: their all-caps headings and MACHINE / CHALLENGE tags
+         on the caps scale (0.37) like the other labels, the #numbers the size
+         of the descriptions, slimmer rows */
+      #panel-experience :is(#htb-inline, #cert-inline) > div[style*="letter-spacing"] { font-size: 12px !important; font-size-adjust: 0.37 !important; letter-spacing: 0.16em !important; margin-bottom: 10px !important; }
+      #panel-experience #htb-inline > div:not([style*="letter-spacing"]) { gap: 6px !important; }
+      #panel-experience #htb-inline .htb-row { padding: 6px 10px !important; }
+      #panel-experience #htb-inline .htb-row span[style*="border:1px solid"] { font-size: 8px !important; font-size-adjust: 0.37 !important; padding: 2px 5px !important; }
+      #panel-experience #htb-inline .htb-row span[style*="font-size:11px"] { font-size: 10px !important; }
+      #panel-experience #htb-inline .htb-go svg { width: 12px; height: 12px; }
       /* every section's subtitles one step over their descriptions, as in
          EXPERIMENTING (12px roles over 10px notes): SKILLS' names and notes,
          FOUNDER's Polyspheric Inc. and Building… at the same sizes. SKILLS is
-         one column here, so it drops desktop's narrower three-column scale. */
+         one or two columns here, so it drops desktop's narrower three-column scale. */
       #panel-experience .ewp-tool-name { font-size: 12px !important; font-size-adjust: 0.48 !important; }
       #panel-experience .ewp-tool-note { font-size: 10px !important; line-height: 1.5 !important; font-size-adjust: 0.48 !important; }
       .ewp-company { font-size: 11px !important; }
