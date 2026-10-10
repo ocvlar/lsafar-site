@@ -2088,7 +2088,17 @@
 <body>
 
 <!-- Mobile tap screen -->
-<div id="mobile-gate" style="
+<!-- the ENTER screen can't be selected or long-pressed: a held tap used to
+     select ENTER's text and bring up the copy menu instead of entering -->
+<style>
+  #mobile-gate, #mobile-gate * {
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #orb-tap-btn { touch-action: manipulation; }
+</style>
+<div id="mobile-gate" oncontextmenu="return false" style="
   display:none;
   position:fixed; inset:0; z-index:1001;
   background:#000;
@@ -3580,17 +3590,18 @@ fetch('sound3.mp3').then(r=>r.arrayBuffer()).then(buf=>_actx.decodeAudioData(buf
       tapBtn2.removeEventListener('touchend', onTap, true);
       tapBtn2.removeEventListener('click',    onTap,  true);
 
-      _actx.resume().then(() => {
-        playSound(_bufTap);
-        gate.style.transition = 'opacity 0.4s ease';
-        gate.style.opacity    = '0';
-        setTimeout(() => {
-          gate.style.display  = 'none';
-          intro.style.display = 'flex';
-          intro.style.opacity = '1';
-          if (window._startBoot) window._startBoot();
-        }, 400);
-      });
+      // wake the page's audio for what follows, but never wait on it: a phone
+      // can leave resume() unanswered, which left ENTER dead after the tap
+      _actx.resume().catch(() => {});
+      playSound(_bufTap);
+      gate.style.transition = 'opacity 0.4s ease';
+      gate.style.opacity    = '0';
+      setTimeout(() => {
+        gate.style.display  = 'none';
+        intro.style.display = 'flex';
+        intro.style.opacity = '1';
+        if (window._startBoot) window._startBoot();
+      }, 400);
     }
 
     const tapBtn = document.getElementById('orb-tap-btn');
@@ -4615,12 +4626,10 @@ function dcChangePage(delta) {
   dcShowProject(_dcProjects[_dcProjectIdx]);
 }
 // TENSAY's YouTube card: on desktop a click opens the video (hover shows its
-// line); on phones a tap shows / hides the line, and the play button opens it
+// line); on phones a tap shows / hides the line, and the corner icon opens it
 function dcYtTap(e) {
-  const card = document.getElementById('dc-yt');
   if (!matchMedia('(hover: none) and (pointer: coarse)').matches) { dcPlayYoutube(); return; }
-  if (card.classList.contains('dc-yt-on') && e && e.target.closest('.dc-play-btn')) { dcPlayYoutube(); return; }
-  card.classList.toggle('dc-yt-on');
+  document.getElementById('dc-yt').classList.toggle('dc-yt-on');
 }
 function dcPlayYoutube() {
   window.open('https://www.youtube.com/watch?v=RJO10CkzMts', '_blank');
@@ -5046,9 +5055,9 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
         opacity:0; transition:opacity .25s ease;
       }
       #dc-yt:hover .dc-yt-overlay { opacity:1; }
-      /* phones (no hover): a tap shows the description line and play button,
-         another tap hides them; the play button and the top-right YouTube
-         icon open the video (dcYtTap) */
+      /* phones (no hover): a tap shows the description line, another tap
+         hides it; the top-right YouTube icon opens the video (dcYtTap). No
+         play button in the centre there: the corner icon is the one to tap */
       .dc-yt-icon {
         display:none; position:absolute; top:6px; right:6px; z-index:2;
         width:52px; height:52px; align-items:center; justify-content:center;
@@ -5057,6 +5066,7 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
       @media (hover: none) and (pointer: coarse) {
         .dc-yt-icon { display:flex; }
         #dc-yt.dc-yt-on .dc-yt-overlay { opacity:1; }
+        #dc-yt .dc-play-btn { display:none; }
       }
       .dc-play-btn {
         position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -5391,7 +5401,7 @@ document.addEventListener('click', e => {
     if(id===0) return `
       <div style="margin-bottom:16px">
         <div class="ewp-role">Cybersecurity</div>
-        <div class="ewp-note">Offensive security mindset. My skills are dusty, but give me a laptop + internet access and I'll figure it out.</div>
+        <div class="ewp-note">Offensive security. My skills are dusty, but give me a laptop + internet access and I'll figure it out.</div>
         <div class="ewp-tags" style="justify-content:center;margin-top:12px;margin-bottom:26px;">
           <button class="etched-chip" id="cert-inline-btn" onclick="toggleCertInline(this)" aria-expanded="false" aria-controls="cert-inline"><span class="ec-mark" aria-hidden="true"></span><span class="ec-text">CompTIA Sec+</span></button>
           <button class="etched-chip" id="htb-inline-btn" onclick="toggleHTBInline(this)" aria-expanded="false" aria-controls="htb-inline"><span class="ec-mark" aria-hidden="true"></span><span class="ec-text">HackTheBox</span></button>
@@ -5488,7 +5498,7 @@ document.addEventListener('click', e => {
         <div><div class="ewp-tool-name">Brand Strategy</div><div class="ewp-tool-note">(Identity + Taste + Consistency) × Resonance = Brand.</div></div>
         <div><div class="ewp-tool-name">Community Building</div><div class="ewp-tool-note">No paid media, Organic growth over ANYTHING.</div></div>
         <div><div class="ewp-tool-name">UX/UI <button class="etched-icon" id="skills-yap-btn" onclick="toggleYap(this)" title="Read more" aria-label="Read more"><span class="etched-icon-glyph"><svg width="18" height="18" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><path id="skills-yap-shape" stroke-width="10" stroke-linejoin="round" d="M128,136v64a8,8,0,0,1-16,0V155.32L45.66,221.66a8,8,0,0,1-11.32-11.32L100.68,144H56a8,8,0,0,1,0-16h64A8,8,0,0,1,128,136ZM208,32H80A16,16,0,0,0,64,48V96a8,8,0,0,0,16,0V48H208V176H160a8,8,0,0,0,0,16h48a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Z"/><mask id="skills-yap-mask"><use href="#skills-yap-shape" fill="#fff" stroke="#fff"/></mask></defs><use class="etch-lip" href="#skills-yap-shape" transform="translate(0 11)"/><g mask="url(#skills-yap-mask)"><rect class="etch-well" x="-20" y="-20" width="296" height="296"/><g transform="translate(0 10)"><use class="etch-face" href="#skills-yap-shape"/></g></g></svg></span></button><span class="ewp-yap-text" style="display:none;"> Every particle, sound, visual, every detail tells a story. I am obsessed with how the experience reaches the eye + ears + mind to convey a feel. I want to connect with the user from the other side of the screen as digitally as possible.</span></div><div class="ewp-tool-note">The experience should reach the eye, the ear, and the mind.</div></div>
-        <div><div class="ewp-tool-name">Risk Management</div><div class="ewp-tool-note">Position Sizing, traded with thousands.</div></div>
+        <div><div class="ewp-tool-name">Risk Management</div><div class="ewp-tool-note">Position Sizing, traded with size.</div></div>
         <div><div class="ewp-tool-name">Market Research</div><div class="ewp-tool-note">Good at finding market trends early.</div></div>
         <div><div class="ewp-tool-name">Python</div><div class="ewp-tool-note">Scripting · automation · tooling.</div></div>
       </div>
@@ -5510,6 +5520,10 @@ document.addEventListener('click', e => {
   let hoverIdx=-1, activeIdx=-1, _transitioning=false;
   let wrap=null;
   const tiltTarget={x:0,y:0}, tiltCurrent={x:0,y:0}, autoRot={x:0,y:0};
+  // phones (no cursor to follow): a tap or a scroll stirs the plasma, a surge
+  // in its churn plus a spin that both ease off (see the touch / scroll
+  // listeners and animate)
+  let stir=0, spinVel=0, plasmaT=0, lastT=0;
   const mouseNDC = new THREE.Vector2(9,9);
   let renderer=null, scene=null, camera=null, hudScene=null, hudCamera=null;
   let mainGroup=null, plasmaMat=null, plasmaMesh=null, ptMat=null;
@@ -5783,10 +5797,39 @@ document.addEventListener('click', e => {
     });
     canvas.addEventListener('touchend',e=>{
       e.preventDefault();
+      // the finger lifts: the tilt eases back to rest (or the open section's angle)
+      const rest=activeIdx===-1?{x:0,y:0}:SECTIONS[activeIdx].tilt;
+      tiltTarget.x=rest.x; tiltTarget.y=rest.y;
       const t2=e.changedTouches[0],idx=raycastArcs(getNDC(t2.clientX,t2.clientY));
       if(idx===-1) return;
       idx===activeIdx ? closeSection() : openSection(idx);
     },{passive:false});
+    // Phones: touching the sphere stirs it (a surge and a little spin) and a
+    // finger dragged across it tilts it, the way the cursor does on desktop
+    canvas.addEventListener('touchstart',e=>{
+      stir=Math.min(1.6,stir+0.9);
+      spinVel+=0.035;
+    },{passive:true});
+    canvas.addEventListener('touchmove',e=>{
+      const t=e.touches[0]; if(!t) return;
+      const n=getNDC(t.clientX,t.clientY);
+      const base=activeIdx===-1?{x:0,y:0}:SECTIONS[activeIdx].tilt;
+      const k=activeIdx===-1?1:0.5;
+      tiltTarget.y=base.y+Math.max(-1,Math.min(1,n.x))*0.5*k;
+      tiltTarget.x=base.x-Math.max(-1,Math.min(1,n.y))*0.35*k;
+      stir=Math.min(1.6,stir+0.04);
+    },{passive:true});
+    // ...and scrolling a section's text spins and stirs it, by how far it scrolled
+    if(expPanelOuter && matchMedia('(hover: none)').matches){
+      const lastTop=new WeakMap();
+      expPanelOuter.addEventListener('scroll',e=>{
+        const el=e.target; if(!el || el.scrollTop===undefined) return;
+        const prev=lastTop.has(el)?lastTop.get(el):el.scrollTop;
+        const d=el.scrollTop-prev; lastTop.set(el,el.scrollTop);
+        spinVel+=Math.max(-0.05,Math.min(0.05,d*0.0012));
+        stir=Math.min(1.6,stir+Math.min(0.25,Math.abs(d)*0.006));
+      },true);
+    }
 
     // Only resize on actual window resize, not on arc open/close
     window.addEventListener('resize', ()=>{
@@ -5872,10 +5915,15 @@ document.addEventListener('click', e => {
         mat.uniforms.uTime.value=time; mat.uniforms.uSpherePhase.value=spherePhase;
       });
       if(outerRingMat) outerRingMat.uniforms.uTime.value=time;
-      plasmaMat.uniforms.uTime.value=time*0.78;
+      // the plasma's churn runs faster while stirred (phones: tap / scroll)
+      const dt=Math.min(0.05,Math.max(0,time-lastT)); lastT=time;
+      plasmaT+=dt*0.78*(1+stir*2.2);
+      stir*=Math.exp(-dt*1.6);
+      plasmaMat.uniforms.uTime.value=plasmaT;
       ptMat.uniforms.uTime.value=time;
       plasmaMesh.rotation.y=spherePhase;
-      autoRot.x+=0.002; autoRot.y+=0.005;
+      autoRot.x+=0.002; autoRot.y+=0.005+spinVel;
+      spinVel*=Math.exp(-dt*1.8);
       tiltCurrent.x=lerp(tiltCurrent.x,tiltTarget.x,Q.tiltLerp);
       tiltCurrent.y=lerp(tiltCurrent.y,tiltTarget.y,Q.tiltLerp);
       mainGroup.rotation.x=autoRot.x+tiltCurrent.x;
