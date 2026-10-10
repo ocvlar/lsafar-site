@@ -2620,7 +2620,7 @@
 <script>
   // Message popup: open / close. The hologram inside is message-popup.js.
   function openTriModal() {
-    playSound && playSound(_bufHover);
+    playSound && playSound(_bufSound3);   // the EXPERIENCE wheel's hover sound
     document.getElementById('tri-modal').classList.add('open');
     document.getElementById('v-lv').hidden = false;          // starts the hologram, focuses the message
     if (window.__msgPopup) window.__msgPopup.opened();
@@ -3566,6 +3566,7 @@ items.forEach((item, i) => {
   });
   item.addEventListener('click', () => {
     if (isTouchDevice()) return;
+    playSound(_bufSound1);   // the sound of opening a section on the EXPERIENCE wheel
     // Directed Works is a standalone modal, not one of the side-panel tabs.
     if (item.dataset.panel === 'directed') { showDirected(); return; }
     openPanel(item.dataset.panel, item);
@@ -3578,6 +3579,7 @@ items.forEach((item, i) => {
     e.preventDefault();
     if (i === activeIndex) {
       // already selected — open panel
+      playSound(_bufSound1);
       if (item.dataset.panel === 'directed') { showDirected(); return; }
       openPanel(item.dataset.panel, item);
     } else {
@@ -4847,9 +4849,29 @@ function hideWebPen() { playSound(_bufBack); const m=document.getElementById('we
 </div>
   <script>
 // ── TROPHY ──
+// Every trophy's icon, fetched and decoded in idle time after the page has
+// loaded, so a toast never shows up before its icon (on the live site the
+// image used to arrive a moment after the toast).
+const TROPHY_ICONS = ['trophy.png', 'trophy-ico.png?v=2', 'trophy-ig.png?v=2', 'trophy-work.png', 'trophy-msg.png?v=2'];
+const _trophyReady = {};
+function trophyIcon(src) {
+  if (!_trophyReady[src]) {
+    const im = new Image(); im.decoding = 'async'; im.src = src;
+    _trophyReady[src] = (im.decode ? im.decode() : new Promise(r => { im.onload = r; im.onerror = r; })).catch(() => {});
+  }
+  return _trophyReady[src];
+}
+addEventListener('load', () => {
+  const idle = window.requestIdleCallback || (fn => setTimeout(fn, 2000));
+  idle(() => TROPHY_ICONS.forEach(trophyIcon), { timeout: 4000 });
+});
 // The toast, built fresh and appended straight to body so no stacking
-// context from panels/backdrops can interfere.
+// context from panels/backdrops can interfere. It (and its sound) waits for
+// the icon, at most 1.2 s.
 function showTrophy(title, img) {
+  Promise.race([trophyIcon(img), new Promise(r => setTimeout(r, 1200))]).then(() => trophyToast(title, img));
+}
+function trophyToast(title, img) {
   const t = document.createElement('div');
   t.id = 'trophy-notif';
   t.style.cssText = [
@@ -5485,7 +5507,7 @@ document.addEventListener('click', e => {
       raycaster.setFromCamera(ndc,hudCamera);
       const hits=raycaster.intersectObjects(arcRayMeshes);
       const newIdx=hits.length>0?hits[0].object.userData.sectionIdx:-1;
-      if(newIdx !== -1 && newIdx !== hoverIdx) playSound(_bufSound3);
+      if(newIdx !== -1 && newIdx !== hoverIdx) playSound(_bufHover);   // the ME / WORK / EXPERIENCE hover sound
       hoverIdx=newIdx;
     });
   }
@@ -6639,7 +6661,7 @@ document.addEventListener('click', e => {
   // The iCO and the orbit ring only render while the popup is open.
   window.__icoPaused = true;
   function openVerModal()  {
-    playSound && playSound(_bufHover);
+    playSound && playSound(_bufSound3);   // the EXPERIENCE wheel's hover sound
     document.getElementById('ver-modal').classList.add('open');
     loadSiteStatus(); // fresh status each time the popup opens
     if (window.icoRing) window.icoRing.open();
