@@ -2745,7 +2745,7 @@ function tick(){
    at the holder) until its lowest point is PHONE_GAP px above where its title
    will be: worked out per chapter from that paragraph's height (measured off-
    screen) and the camera's settled view of the chapter. */
-const PHONE_GAP = 60;
+const PHONE_GAP = 46;
 // each object's lowest visible point below its holder, in NODE_R (measured on a phone)
 const OBJ_LOW = { bsod:-1.30, insta:-1.09, dna:-0.77, fibreloader:-1.25 };
 const fitCam = new THREE.PerspectiveCamera(), fitP = new THREE.Vector3();
