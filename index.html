@@ -11,12 +11,17 @@
       document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
   </script>
   <title>LS</title>
+  <!-- Michroma (ENTER, the etched type) straight from the head, with the font
+       host connected early: an @import inside a <style> waits on that sheet
+       before the font is even requested, which held ENTER back on phones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&display=swap">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&display=swap');
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;900&display=swap');
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Michroma&display=swap');
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -346,6 +351,9 @@
     @media (max-width: 1024px) { .info-panel.me-active .info-panel-inner { height: 85vh !important; } }
     @media (max-width: 768px) {
       .info-panel.me-active .info-panel-inner { height: 88vh !important; }
+      /* EXPERIENCE in ME's glass on phones: its own lighter grey read as a
+         flat solid panel next to ME and WORK */
+      .info-panel.exp-active .info-panel-inner { background: rgba(6,8,14,0.9) !important; }
     }
     #me-corridor {
       position: absolute; inset: 0; overflow: hidden; border-radius: inherit;
@@ -526,7 +534,7 @@
     #me-corridor .mark.tl{left:46px;top:26px}#me-corridor .mark.tr{right:16px;top:26px}
     #me-corridor .chapter{bottom:calc(56px + 6%)}
     #me-corridor .rail{width:calc(100% - 28px);bottom:18px}
-    #me-corridor .chapter .blurb{font-size:9.5px;line-height:1.95}
+    #me-corridor .chapter .blurb{font-size:9px;line-height:1.75}
     #me-corridor .rail{gap:12px}
     #me-corridor .ctrl{letter-spacing:0.22em;font-size:7px;gap:7px}
   }
@@ -1199,11 +1207,15 @@
     @media (prefers-reduced-motion: reduce) {
       #skills-yap-btn::before { animation: none; opacity: 0.7; }
     }
-    /* Phones: both icons sized to the 11px heading beside them (glyph ~10px,
-       matching the caps), each keeping a bigger invisible tap area */
+    /* Phones: each icon sized to its heading in desktop's proportions (glyph
+       ~1.3x the heading): OPERATOR's 14px title an 18px glyph, Ocularism /
+       Systemflaw's 12px headings 15px; each keeps a bigger invisible tap area */
     @media (max-width: 768px) {
-      #ewp-ig-btn { width: 20px; height: 20px; margin-left: -6px; }
-      #ewp-ig-btn svg { width: 10px; height: 10px; }
+      #ewp-ig-btn { width: 26px; height: 26px; margin-left: -6px; }
+      #ewp-ig-btn svg { width: 18px; height: 18px; }
+      #ocu-ig-btn, #sf-ig-btn { width: 20px; height: 20px; }
+      #ocu-ig-btn svg, #sf-ig-btn svg { width: 15px; height: 15px; }
+      #ocu-ig-btn::after, #sf-ig-btn::after { content: ""; position: absolute; inset: -10px; }
       #ewp-ig-btn::after, #skills-yap-btn::after { content: ""; position: absolute; inset: -12px; }
       #skills-yap-btn { width: 18px; height: 18px; margin-left: -3px; }
       #skills-yap-btn svg { width: 10px; height: 10px; }
@@ -1307,6 +1319,10 @@
     .plasma-btn.tap-enter .label-plate span { padding-left: 0.32em; transition: opacity 0.35s ease; }
     /* ENTER only ever shows in Michroma: hidden until the font is in (script by the gate) */
     .plasma-btn.tap-enter:not(.font-ready) .label-plate span { opacity: 0; }
+    /* ENTER appears whole: once its plasma glass has drawn its first frame and
+       Michroma is in, never as the bare dark pill before them */
+    .plasma-btn.tap-enter { transition: opacity 0.45s ease; }
+    .plasma-btn.tap-enter:not(.plasma-ready), .plasma-btn.tap-enter:not(.font-ready) { opacity: 0; }
     /* a soft dark pool behind the word, feathered out, so ENTER reads clearly
        over the brightest plasma */
     .plasma-btn.tap-enter .label-plate::before {
@@ -1609,8 +1625,11 @@
         transition: opacity 0.35s 0.15s ease !important;
       }
       #ew-cs-header { padding: 8px 0 6px !important; gap: 8px !important; }
-      /* the section's title a step over its roles' (12px), as on desktop (17.5 over 16) */
-      #ew-cs-title { font-size: 13.5px !important; letter-spacing: 0.18em !important; gap: 6px !important; min-width: 0 !important; }
+      /* the section's title over its roles (12px), as on desktop (17.5 over 16):
+         14px, the phone's title size (ME's chapter titles too) */
+      #ew-cs-title { font-size: 14px !important; letter-spacing: 0.18em !important; gap: 6px !important; min-width: 0 !important; }
+      /* FOUNDER: desktop's 46px gap above "Building…" left a hole on phones */
+      #panel-experience .ewp-sublabel:has(.typing-dots) { margin-top: 22px !important; }
       /* no "SELECT A NODE" under the wheel */
       #ew-hint { display: none !important; }
       /* CompTIA / HackTheBox: their etched badges at the size of the text around them */
@@ -2066,7 +2085,303 @@
       const b = document.getElementById('orb-tap-btn'), show = () => b.classList.add('font-ready');
       if (!document.fonts) return show();
       Promise.race([document.fonts.load("11px 'Michroma'"), new Promise(r => setTimeout(r, 3000))]).then(show, show);
+      // ENTER shows once its plasma glass has drawn (see .tap-enter), never as the
+      // bare pill before it; if WebGL never comes, it shows anyway after 2.5 s
+      setTimeout(() => b.classList.add('plasma-ready'), 2500);
     })();
+  </script>
+  <script>
+// ── PLASMA GLASS BUTTON ENGINE ──
+// Same fbm/simplex plasma shader as the EXPERIENCE sphere above, rendered
+// small inside each button's own WebGL context. Shared by every .plasma-btn
+// and .etched-icon on the site (see the .plasma-btn CSS comment for the
+// list; the whole design is also saved standalone in plasma-button.html),
+// (the yap modal Close and the Message Send button). mountPlasmaButton() is
+// exposed on window for buttons created later via innerHTML.
+(function() {
+  if (!window.THREE) return;
+
+  const noiseGLSL = `
+    vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+    vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
+    vec4 permute(vec4 x){return mod289(((x*34.)+1.)*x);}
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+    float snoise(vec3 v){
+      const vec2 C=vec2(1./6.,1./3.);const vec4 D=vec4(0.,.5,1.,2.);
+      vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
+      vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.-g;
+      vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
+      vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
+      i=mod289(i);
+      vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
+      float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
+      vec4 j=p-49.*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.*x_);
+      vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.-abs(x)-abs(y);
+      vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
+      vec4 s0=floor(b0)*2.+1.;vec4 s1=floor(b1)*2.+1.;vec4 sh=-step(h,vec4(0.));
+      vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+      vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
+      vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+      p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+      vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);m=m*m;
+      return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+    }
+    float fbm(vec3 p){float t=0.,a=.5,f=1.;for(int i=0;i<3;i++){t+=snoise(p*f)*a;a*=.5;f*=2.;}return t;}
+  `;
+
+  const plasmaVS = `varying vec3 vP,vN,vVP;void main(){vP=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vVP=-mv.xyz;gl_Position=projectionMatrix*mv;}`;
+  const plasmaFS = `uniform float uTime,uScale,uBrightness,uThreshold;uniform vec3 uColorDeep,uColorMid,uColorBright;varying vec3 vP,vN,vVP;${noiseGLSL}void main(){vec3 p=vP*uScale;vec3 q=vec3(fbm(p+vec3(0.,uTime*.05,0.)),fbm(p+vec3(5.2,1.3,2.8)+uTime*.05),fbm(p+vec3(2.2,8.4,.5)-uTime*.02));float d=fbm(p+2.*q);float t=(d+.4)*.8;float alpha=smoothstep(uThreshold,.7,t);vec3 color=mix(uColorDeep,uColorMid,smoothstep(uThreshold,.5,t));color=mix(color,uColorBright,smoothstep(.5,.8,t));color=mix(color,vec3(0.86,0.94,1.0),smoothstep(.88,1.15,t));float depth=(dot(normalize(vN),normalize(vVP))+1.)*.5;gl_FragColor=vec4(color*uBrightness,alpha*(.02+.98*depth));}`;
+
+  // canvasId -> {mid: THREE.Color, bright: THREE.Color}. Lets an already-
+  // mounted button (like the long-lived Directed Works arrows) be retinted
+  // later by window.setPlasmaButtonColor() — see mountPlasmaButton().
+  window._plasmaButtonColors = window._plasmaButtonColors || {};
+
+  function mountPlasmaButton(btnId, canvasId, opts){
+    opts = opts || {};
+    const btn = document.getElementById(btnId);
+    const canvas = document.getElementById(canvasId);
+    if (!btn || !canvas || canvas.dataset.plasmaMounted) return;
+    canvas.dataset.plasmaMounted = '1';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const yPhase = opts.spin || 0;
+    const stretchDivisor = opts.stretchDivisor || 2.6;
+    const brightnessMul = opts.brightnessMul || 1;
+
+    let built = false, W = 0, H = 0;
+    let renderer, scene, camera, group, plasmaMat, plasmaGeo, stretchFor, ro, fitPillNow = null;
+    // opts.stillUntilHover: the plasma holds still (and isn't re-rendered at
+    // all) until the button is hovered, then churns while hovered and eases
+    // back to still. needsDraw forces one frame after a build or resize.
+    const stillUntilHover = !!opts.stillUntilHover;
+    let needsDraw = true;
+
+    // Declared here (not inside build()) so window.setPlasmaButtonColor can
+    // retarget a button's tint even before it's actually built — e.g. the
+    // Directed Works arrows get colored for whichever project is showing
+    // the moment the modal opens, which can happen before their canvas
+    // has a real size yet.
+    const targetMid = new THREE.Color(opts.colorMid || 0x3d6098);
+    const targetBright = new THREE.Color(opts.colorBright || 0x9fc2ec);
+    window._plasmaButtonColors[canvasId] = { mid: targetMid, bright: targetBright };
+
+    function build(){
+      built = true;
+      // Touch devices (phones) draw the plasma onto solid dark glass instead of a
+      // transparent canvas: the additive glow leaves pixels brighter than their
+      // own alpha, which desktop Chrome smooths over but phone browsers (WebKit)
+      // show washed out or with hard edges. Desktop keeps the transparent canvas.
+      const solidGlass = matchMedia('(hover: none)').matches;
+      // ...and the glass is drawn already pill-shaped, transparent outside the
+      // pill: in iOS Low Power Mode, Safari stops clipping the canvas to the
+      // button's rounded corners (CSS radius / clip-path / mask are all ignored
+      // there), so any square canvas showed as a box around ENTER / SEND.
+      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'low-power'});
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(W, H, false);
+      renderer.setClearColor(0x000000, 0);
+      // the pill in drawing-buffer px: the canvas size and the corner radius
+      const pillRes = new THREE.Vector2(), pillU = { uRes: { value: pillRes }, uR: { value: 0 } };
+      const fitPill = () => { renderer.getDrawingBufferSize(pillRes); pillU.uR.value = Math.min(pillRes.x, pillRes.y) / 2; };
+      fitPill(); fitPillNow = fitPill;
+      const PILL = `uniform vec2 uRes; uniform float uR;
+        float pillMask(){ vec2 h = uRes*0.5; vec2 q = abs(gl_FragCoord.xy - h) - (h - uR);
+          float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uR; return clamp(0.5 - d, 0.0, 1.0); }`;
+      let glassScene = null, glassCam = null;
+      if (solidGlass) {
+        glassScene = new THREE.Scene();
+        glassCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        glassScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+          uniforms: pillU, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
+          vertexShader: `void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+          fragmentShader: PILL + `void main(){ float a = pillMask(); gl_FragColor = vec4(vec3(0.0157, 0.0235, 0.047) * a, a); }`,
+        })));
+      }
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 10);
+      const baseZoom = 1.62;
+      camera.position.set(0, 0, baseZoom);
+
+      group = new THREE.Group();
+      scene.add(group);
+
+      // A pill is much wider than tall — stretch the plasma body itself to
+      // the button's shape so the noise field spans corner to corner
+      // instead of sitting as a circle in the middle of a wide capsule.
+      stretchFor = aspect => Math.max(1, aspect / stretchDivisor);
+      group.scale.x = stretchFor(W/H);
+
+      // uColorDeep stays fixed across every button — it's the shadow/depth
+      // end of the gradient, and keeping it constant is what makes
+      // differently-tinted buttons still read as the same glass material.
+      // uColorMid/uColorBright are the part callers can retint (see
+      // window.setPlasmaButtonColor below), defaulting to the site's blue.
+      plasmaMat = new THREE.ShaderMaterial({
+        uniforms:{
+          uTime:{value: Math.random()*40},
+          // Noise frequency: higher = finer swirls (opts.scale; the etched
+          // #panel-back uses more so real filaments move through a small icon).
+          uScale:{value: opts.scale || 0.62},
+          uBrightness:{value:1.55 * brightnessMul},
+          // Where thin plasma fades to nothing. Lower = never fully clears
+          // (opts.threshold; the etched #panel-back uses this so its cut is
+          // never left dark).
+          uThreshold:{value: opts.threshold !== undefined ? opts.threshold : 0.07},
+          uColorDeep:{value:new THREE.Color(0x030810)},
+          uColorMid:{value:targetMid.clone()},
+          uColorBright:{value:targetBright.clone()}
+        },
+        vertexShader:plasmaVS,
+        fragmentShader: solidGlass
+          ? PILL + plasmaFS.replace(/gl_FragColor=vec4\(([^;]*),alpha\*\(\.02\+\.98\*depth\)\);/, 'gl_FragColor=vec4($1,alpha*(.02+.98*depth)*pillMask());')
+          : plasmaFS,
+        transparent:true, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false
+      });
+      if (solidGlass) {
+        Object.assign(plasmaMat.uniforms, pillU);
+        // add light inside the pill only, leaving the glass's (pill) alpha as is
+        plasmaMat.blending = THREE.CustomBlending;
+        plasmaMat.blendSrc = THREE.SrcAlphaFactor; plasmaMat.blendDst = THREE.OneFactor;
+        plasmaMat.blendSrcAlpha = THREE.ZeroFactor; plasmaMat.blendDstAlpha = THREE.OneFactor;
+      }
+      plasmaGeo = new THREE.SphereGeometry(1, 80, 80);
+      group.add(new THREE.Mesh(plasmaGeo, plasmaMat));
+
+      let hot = 0, hotTarget = 0, rest = btn.disabled ? 1 : 0;
+      let tiltX = 0, tiltY = 0, tiltTX = 0, tiltTY = 0;
+
+      function frame(){
+        // The EXPERIENCE wheel rebuilds its content via innerHTML each time
+        // a section reopens, so buttons living inside it (the SKILLS "yap"
+        // trigger, the OPERATOR instagram icon) get a brand-new canvas node
+        // every time — the old one, and its render loop, would otherwise
+        // just keep running forever, invisible. Stop and free it instead.
+        if (!canvas.isConnected) {
+          renderer.dispose(); plasmaMat.dispose(); plasmaGeo.dispose();
+          if (ro) ro.disconnect();
+          delete window._plasmaButtonColors[canvas.id];
+          return;
+        }
+        requestAnimationFrame(frame);
+        // Nothing to draw while the button isn't displayed (its panel or
+        // modal is closed) — skip the render until it's back.
+        if (btn.offsetParent === null) return;
+        hot += (hotTarget - hot) * 0.08;
+        tiltX += (tiltTX - tiltX) * 0.07;
+        tiltY += (tiltTY - tiltY) * 0.07;
+        if (stillUntilHover) {
+          // At rest (not hovered, hover glow and tilt settled): nothing moves,
+          // so skip the render entirely once the resting frame is drawn.
+          const resting = hotTarget === 0 && hot < 0.002 && Math.abs(tiltX) < 0.001 && Math.abs(tiltY) < 0.001;
+          if (resting && !needsDraw) return;
+          needsDraw = false;
+        }
+
+        // Still-until-hover buttons only advance time while hovered.
+        // resting (disabled): dim and slow until it's ready; it wakes by easing up
+        rest += ((btn.disabled ? 1 : 0) - rest) * 0.06;
+        // touch screens never hover, so the plasma churns faster there and sways a little
+        // ...and a tap wakes it like a hover does on desktop: it surges while the
+        // finger is down and settles back after (hot, eased above)
+        const touchBoost = solidGlass && !stillUntilHover ? 2.6 + hot * 3.2 : 1;
+        plasmaMat.uniforms.uTime.value += (1/60) * (stillUntilHover ? hot * 0.85 : 0.5 + hot*0.35) * touchBoost * (1 - rest * 0.7);
+        if (solidGlass && !stillUntilHover) {
+          const tt = plasmaMat.uniforms.uTime.value, sw = 1 + hot * 0.6;
+          tiltTY = Math.sin(tt * 0.9) * 0.07 * sw; tiltTX = Math.cos(tt * 0.7) * 0.04 * sw;   // subtle: more would bare the pill's ends
+        }
+        plasmaMat.uniforms.uBrightness.value = (1.55 + hot*0.6) * brightnessMul * (1 - rest * 0.62);
+        // Ease toward whatever color window.setPlasmaButtonColor() last set,
+        // rather than cutting instantly — a re-tint should feel like the
+        // glass itself shifting, not a hard swap.
+        plasmaMat.uniforms.uColorMid.value.lerp(targetMid, 0.035);
+        plasmaMat.uniforms.uColorBright.value.lerp(targetBright, 0.035);
+
+        // No idle auto-spin: the noise already churns via uTime, so
+        // rotation only answers to cursor tilt plus a fixed rest angle.
+        group.rotation.y = yPhase + tiltY;
+        group.rotation.x = tiltX;
+        camera.position.z = baseZoom - hot*0.10;
+
+        drawPlasma();
+      }
+      function drawPlasma(){
+        if (glassScene) { renderer.autoClear = true; renderer.render(glassScene, glassCam); renderer.autoClear = false; }
+        renderer.render(scene, camera);
+        if (!btn.classList.contains('plasma-ready')) btn.classList.add('plasma-ready');   // its first frame is up
+      }
+      if(reduceMotion){
+        drawPlasma();
+      } else {
+        frame();
+      }
+
+      // only a mouse hovers: on a phone a tap fires pointerenter and never
+      // pointerleave, which left the plasma stuck bright and zoomed
+      btn.addEventListener('pointerenter', (e)=>{ if (e.pointerType === 'mouse' && !btn.disabled) hotTarget = 1; });
+      // touch: the plasma surges while the finger is down, then eases back
+      let tapOff = 0;
+      btn.addEventListener('pointerdown', (e)=>{ if (e.pointerType !== 'mouse' && !btn.disabled) { clearTimeout(tapOff); hotTarget = 1; } });
+      const tapUp = (e)=>{ if (e.pointerType !== 'mouse') { clearTimeout(tapOff); tapOff = setTimeout(()=>{ hotTarget = 0; }, 450); } };
+      btn.addEventListener('pointerup', tapUp);
+      btn.addEventListener('pointercancel', tapUp);
+      btn.addEventListener('pointerleave', ()=>{ hotTarget = 0; tiltTX = 0; tiltTY = 0; });
+      btn.addEventListener('pointermove', (e)=>{
+        if (e.pointerType !== 'mouse') return;
+        const r = btn.getBoundingClientRect();
+        const nx = (e.clientX - r.left)/r.width * 2 - 1;
+        const ny = (e.clientY - r.top)/r.height * 2 - 1;
+        if (btn.disabled) return;
+        tiltTY = nx*0.35;
+        tiltTX = -ny*0.25;
+      });
+    }
+
+    // Lazy-build on the first real size instead of requiring every call
+    // site to know whether its button is visible yet — this is what lets
+    // every instance mount the same way whether it's sitting in the open
+    // (#panel-back) or inside a display:none modal/panel that hasn't been
+    // opened yet (everything else).
+    ro = new ResizeObserver(()=>{
+      W = btn.clientWidth; H = btn.clientHeight;
+      if (!W || !H) return;
+      if (!built) { build(); return; }
+      needsDraw = true;
+      renderer.setSize(W, H, false);
+      if (fitPillNow) fitPillNow();
+      camera.aspect = W/H;
+      camera.updateProjectionMatrix();
+      group.scale.x = stretchFor(W/H);
+    });
+    ro.observe(btn);
+  }
+  window.mountPlasmaButton = mountPlasmaButton;
+  // Retints an already-mounted button's plasma — the button's own frame()
+  // loop eases the actual uniforms toward these new targets, so this just
+  // records where to ease *to*. Safe to call before the button is visible.
+  window.setPlasmaButtonColor = function(canvasId, midHex, brightHex){
+    const entry = window._plasmaButtonColors[canvasId];
+    if (!entry) return;
+    entry.mid.set(midHex);
+    entry.bright.set(brightHex);
+  };
+
+  // Every .plasma-btn that's static (always in the DOM, just possibly
+  // hidden) mounts once here — the ResizeObserver above takes care of
+  // waiting until it's actually visible. Buttons that get freshly created
+  // via innerHTML (SKILLS yap, OPERATOR instagram) are mounted from the
+  // PLASMA EXPERIENCE closure instead, right after they're injected.
+  // ENTER first, now: the engine runs right after the phone's tap screen, so
+  // ENTER's plasma starts while the rest of the page is still arriving
+  mountPlasmaButton('orb-tap-btn', 'orb-tap-canvas', { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff });   // SEND's tint
+  document.addEventListener('DOMContentLoaded', () => {
+    // The Directed Works arrows are plain etched icons (no plasma) — see the
+    // .dc-nav rules near their markup — so they don't mount here.
+    // phones: CLOSE in ENTER / SEND's blue; desktop keeps its own tint
+    mountPlasmaButton('yap-modal-close', 'yap-modal-close-canvas', matchMedia('(max-width: 768px)').matches
+      ? { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff } : { stretchDivisor: 1.4 });
+  });
+})();
   </script>
 </div>
 
@@ -2463,11 +2778,11 @@
     .ps2-btn { width: 14px; height: 14px; top: 0.5px; }
   }
   /* Phones: the trophy toast as on desktop (its inline styles: the grey glass,
-     the border, the shadow, a 48 px-class icon over two etched lines), a step
-     smaller and centred under the date / clock row; a long title wraps */
+     the border, the shadow, a 48 px-class icon over two etched lines, top
+     right), a step smaller; a long title wraps */
   @media (max-width: 768px) {
     #trophy-notif {
-      top: 46px !important; right: auto !important; left: 50% !important; transform: translateX(-50%);
+      top: 14px !important; right: 12px !important; left: auto !important;
       min-width: 0 !important; width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box;
       gap: 12px !important; padding: 10px 16px 10px 12px !important;
     }
@@ -5541,296 +5856,6 @@ document.addEventListener('click', e => {
   }
 })();
 
-// ── PLASMA GLASS BUTTON ENGINE ──
-// Same fbm/simplex plasma shader as the EXPERIENCE sphere above, rendered
-// small inside each button's own WebGL context. Shared by every .plasma-btn
-// and .etched-icon on the site (see the .plasma-btn CSS comment for the
-// list; the whole design is also saved standalone in plasma-button.html),
-// (the yap modal Close and the Message Send button). mountPlasmaButton() is
-// exposed on window for buttons created later via innerHTML.
-(function() {
-  if (!window.THREE) return;
-
-  const noiseGLSL = `
-    vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
-    vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
-    vec4 permute(vec4 x){return mod289(((x*34.)+1.)*x);}
-    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
-    float snoise(vec3 v){
-      const vec2 C=vec2(1./6.,1./3.);const vec4 D=vec4(0.,.5,1.,2.);
-      vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
-      vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.-g;
-      vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
-      vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
-      i=mod289(i);
-      vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
-      float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
-      vec4 j=p-49.*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.*x_);
-      vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.-abs(x)-abs(y);
-      vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
-      vec4 s0=floor(b0)*2.+1.;vec4 s1=floor(b1)*2.+1.;vec4 sh=-step(h,vec4(0.));
-      vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-      vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
-      vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-      p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
-      vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);m=m*m;
-      return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
-    }
-    float fbm(vec3 p){float t=0.,a=.5,f=1.;for(int i=0;i<3;i++){t+=snoise(p*f)*a;a*=.5;f*=2.;}return t;}
-  `;
-
-  const plasmaVS = `varying vec3 vP,vN,vVP;void main(){vP=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vVP=-mv.xyz;gl_Position=projectionMatrix*mv;}`;
-  const plasmaFS = `uniform float uTime,uScale,uBrightness,uThreshold;uniform vec3 uColorDeep,uColorMid,uColorBright;varying vec3 vP,vN,vVP;${noiseGLSL}void main(){vec3 p=vP*uScale;vec3 q=vec3(fbm(p+vec3(0.,uTime*.05,0.)),fbm(p+vec3(5.2,1.3,2.8)+uTime*.05),fbm(p+vec3(2.2,8.4,.5)-uTime*.02));float d=fbm(p+2.*q);float t=(d+.4)*.8;float alpha=smoothstep(uThreshold,.7,t);vec3 color=mix(uColorDeep,uColorMid,smoothstep(uThreshold,.5,t));color=mix(color,uColorBright,smoothstep(.5,.8,t));color=mix(color,vec3(0.86,0.94,1.0),smoothstep(.88,1.15,t));float depth=(dot(normalize(vN),normalize(vVP))+1.)*.5;gl_FragColor=vec4(color*uBrightness,alpha*(.02+.98*depth));}`;
-
-  // canvasId -> {mid: THREE.Color, bright: THREE.Color}. Lets an already-
-  // mounted button (like the long-lived Directed Works arrows) be retinted
-  // later by window.setPlasmaButtonColor() — see mountPlasmaButton().
-  window._plasmaButtonColors = window._plasmaButtonColors || {};
-
-  function mountPlasmaButton(btnId, canvasId, opts){
-    opts = opts || {};
-    const btn = document.getElementById(btnId);
-    const canvas = document.getElementById(canvasId);
-    if (!btn || !canvas || canvas.dataset.plasmaMounted) return;
-    canvas.dataset.plasmaMounted = '1';
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const yPhase = opts.spin || 0;
-    const stretchDivisor = opts.stretchDivisor || 2.6;
-    const brightnessMul = opts.brightnessMul || 1;
-
-    let built = false, W = 0, H = 0;
-    let renderer, scene, camera, group, plasmaMat, plasmaGeo, stretchFor, ro, fitPillNow = null;
-    // opts.stillUntilHover: the plasma holds still (and isn't re-rendered at
-    // all) until the button is hovered, then churns while hovered and eases
-    // back to still. needsDraw forces one frame after a build or resize.
-    const stillUntilHover = !!opts.stillUntilHover;
-    let needsDraw = true;
-
-    // Declared here (not inside build()) so window.setPlasmaButtonColor can
-    // retarget a button's tint even before it's actually built — e.g. the
-    // Directed Works arrows get colored for whichever project is showing
-    // the moment the modal opens, which can happen before their canvas
-    // has a real size yet.
-    const targetMid = new THREE.Color(opts.colorMid || 0x3d6098);
-    const targetBright = new THREE.Color(opts.colorBright || 0x9fc2ec);
-    window._plasmaButtonColors[canvasId] = { mid: targetMid, bright: targetBright };
-
-    function build(){
-      built = true;
-      // Touch devices (phones) draw the plasma onto solid dark glass instead of a
-      // transparent canvas: the additive glow leaves pixels brighter than their
-      // own alpha, which desktop Chrome smooths over but phone browsers (WebKit)
-      // show washed out or with hard edges. Desktop keeps the transparent canvas.
-      const solidGlass = matchMedia('(hover: none)').matches;
-      // ...and the glass is drawn already pill-shaped, transparent outside the
-      // pill: in iOS Low Power Mode, Safari stops clipping the canvas to the
-      // button's rounded corners (CSS radius / clip-path / mask are all ignored
-      // there), so any square canvas showed as a box around ENTER / SEND.
-      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'low-power'});
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      renderer.setSize(W, H, false);
-      renderer.setClearColor(0x000000, 0);
-      // the pill in drawing-buffer px: the canvas size and the corner radius
-      const pillRes = new THREE.Vector2(), pillU = { uRes: { value: pillRes }, uR: { value: 0 } };
-      const fitPill = () => { renderer.getDrawingBufferSize(pillRes); pillU.uR.value = Math.min(pillRes.x, pillRes.y) / 2; };
-      fitPill(); fitPillNow = fitPill;
-      const PILL = `uniform vec2 uRes; uniform float uR;
-        float pillMask(){ vec2 h = uRes*0.5; vec2 q = abs(gl_FragCoord.xy - h) - (h - uR);
-          float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uR; return clamp(0.5 - d, 0.0, 1.0); }`;
-      let glassScene = null, glassCam = null;
-      if (solidGlass) {
-        glassScene = new THREE.Scene();
-        glassCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-        glassScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-          uniforms: pillU, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
-          vertexShader: `void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`,
-          fragmentShader: PILL + `void main(){ float a = pillMask(); gl_FragColor = vec4(vec3(0.0157, 0.0235, 0.047) * a, a); }`,
-        })));
-      }
-
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 10);
-      const baseZoom = 1.62;
-      camera.position.set(0, 0, baseZoom);
-
-      group = new THREE.Group();
-      scene.add(group);
-
-      // A pill is much wider than tall — stretch the plasma body itself to
-      // the button's shape so the noise field spans corner to corner
-      // instead of sitting as a circle in the middle of a wide capsule.
-      stretchFor = aspect => Math.max(1, aspect / stretchDivisor);
-      group.scale.x = stretchFor(W/H);
-
-      // uColorDeep stays fixed across every button — it's the shadow/depth
-      // end of the gradient, and keeping it constant is what makes
-      // differently-tinted buttons still read as the same glass material.
-      // uColorMid/uColorBright are the part callers can retint (see
-      // window.setPlasmaButtonColor below), defaulting to the site's blue.
-      plasmaMat = new THREE.ShaderMaterial({
-        uniforms:{
-          uTime:{value: Math.random()*40},
-          // Noise frequency: higher = finer swirls (opts.scale; the etched
-          // #panel-back uses more so real filaments move through a small icon).
-          uScale:{value: opts.scale || 0.62},
-          uBrightness:{value:1.55 * brightnessMul},
-          // Where thin plasma fades to nothing. Lower = never fully clears
-          // (opts.threshold; the etched #panel-back uses this so its cut is
-          // never left dark).
-          uThreshold:{value: opts.threshold !== undefined ? opts.threshold : 0.07},
-          uColorDeep:{value:new THREE.Color(0x030810)},
-          uColorMid:{value:targetMid.clone()},
-          uColorBright:{value:targetBright.clone()}
-        },
-        vertexShader:plasmaVS,
-        fragmentShader: solidGlass
-          ? PILL + plasmaFS.replace(/gl_FragColor=vec4\(([^;]*),alpha\*\(\.02\+\.98\*depth\)\);/, 'gl_FragColor=vec4($1,alpha*(.02+.98*depth)*pillMask());')
-          : plasmaFS,
-        transparent:true, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false
-      });
-      if (solidGlass) {
-        Object.assign(plasmaMat.uniforms, pillU);
-        // add light inside the pill only, leaving the glass's (pill) alpha as is
-        plasmaMat.blending = THREE.CustomBlending;
-        plasmaMat.blendSrc = THREE.SrcAlphaFactor; plasmaMat.blendDst = THREE.OneFactor;
-        plasmaMat.blendSrcAlpha = THREE.ZeroFactor; plasmaMat.blendDstAlpha = THREE.OneFactor;
-      }
-      plasmaGeo = new THREE.SphereGeometry(1, 80, 80);
-      group.add(new THREE.Mesh(plasmaGeo, plasmaMat));
-
-      let hot = 0, hotTarget = 0, rest = btn.disabled ? 1 : 0;
-      let tiltX = 0, tiltY = 0, tiltTX = 0, tiltTY = 0;
-
-      function frame(){
-        // The EXPERIENCE wheel rebuilds its content via innerHTML each time
-        // a section reopens, so buttons living inside it (the SKILLS "yap"
-        // trigger, the OPERATOR instagram icon) get a brand-new canvas node
-        // every time — the old one, and its render loop, would otherwise
-        // just keep running forever, invisible. Stop and free it instead.
-        if (!canvas.isConnected) {
-          renderer.dispose(); plasmaMat.dispose(); plasmaGeo.dispose();
-          if (ro) ro.disconnect();
-          delete window._plasmaButtonColors[canvas.id];
-          return;
-        }
-        requestAnimationFrame(frame);
-        // Nothing to draw while the button isn't displayed (its panel or
-        // modal is closed) — skip the render until it's back.
-        if (btn.offsetParent === null) return;
-        hot += (hotTarget - hot) * 0.08;
-        tiltX += (tiltTX - tiltX) * 0.07;
-        tiltY += (tiltTY - tiltY) * 0.07;
-        if (stillUntilHover) {
-          // At rest (not hovered, hover glow and tilt settled): nothing moves,
-          // so skip the render entirely once the resting frame is drawn.
-          const resting = hotTarget === 0 && hot < 0.002 && Math.abs(tiltX) < 0.001 && Math.abs(tiltY) < 0.001;
-          if (resting && !needsDraw) return;
-          needsDraw = false;
-        }
-
-        // Still-until-hover buttons only advance time while hovered.
-        // resting (disabled): dim and slow until it's ready; it wakes by easing up
-        rest += ((btn.disabled ? 1 : 0) - rest) * 0.06;
-        // touch screens never hover, so the plasma churns faster there and sways a little
-        // ...and a tap wakes it like a hover does on desktop: it surges while the
-        // finger is down and settles back after (hot, eased above)
-        const touchBoost = solidGlass && !stillUntilHover ? 2.6 + hot * 3.2 : 1;
-        plasmaMat.uniforms.uTime.value += (1/60) * (stillUntilHover ? hot * 0.85 : 0.5 + hot*0.35) * touchBoost * (1 - rest * 0.7);
-        if (solidGlass && !stillUntilHover) {
-          const tt = plasmaMat.uniforms.uTime.value, sw = 1 + hot * 0.6;
-          tiltTY = Math.sin(tt * 0.9) * 0.07 * sw; tiltTX = Math.cos(tt * 0.7) * 0.04 * sw;   // subtle: more would bare the pill's ends
-        }
-        plasmaMat.uniforms.uBrightness.value = (1.55 + hot*0.6) * brightnessMul * (1 - rest * 0.62);
-        // Ease toward whatever color window.setPlasmaButtonColor() last set,
-        // rather than cutting instantly — a re-tint should feel like the
-        // glass itself shifting, not a hard swap.
-        plasmaMat.uniforms.uColorMid.value.lerp(targetMid, 0.035);
-        plasmaMat.uniforms.uColorBright.value.lerp(targetBright, 0.035);
-
-        // No idle auto-spin: the noise already churns via uTime, so
-        // rotation only answers to cursor tilt plus a fixed rest angle.
-        group.rotation.y = yPhase + tiltY;
-        group.rotation.x = tiltX;
-        camera.position.z = baseZoom - hot*0.10;
-
-        drawPlasma();
-      }
-      function drawPlasma(){
-        if (glassScene) { renderer.autoClear = true; renderer.render(glassScene, glassCam); renderer.autoClear = false; }
-        renderer.render(scene, camera);
-      }
-      if(reduceMotion){
-        drawPlasma();
-      } else {
-        frame();
-      }
-
-      // only a mouse hovers: on a phone a tap fires pointerenter and never
-      // pointerleave, which left the plasma stuck bright and zoomed
-      btn.addEventListener('pointerenter', (e)=>{ if (e.pointerType === 'mouse' && !btn.disabled) hotTarget = 1; });
-      // touch: the plasma surges while the finger is down, then eases back
-      let tapOff = 0;
-      btn.addEventListener('pointerdown', (e)=>{ if (e.pointerType !== 'mouse' && !btn.disabled) { clearTimeout(tapOff); hotTarget = 1; } });
-      const tapUp = (e)=>{ if (e.pointerType !== 'mouse') { clearTimeout(tapOff); tapOff = setTimeout(()=>{ hotTarget = 0; }, 450); } };
-      btn.addEventListener('pointerup', tapUp);
-      btn.addEventListener('pointercancel', tapUp);
-      btn.addEventListener('pointerleave', ()=>{ hotTarget = 0; tiltTX = 0; tiltTY = 0; });
-      btn.addEventListener('pointermove', (e)=>{
-        if (e.pointerType !== 'mouse') return;
-        const r = btn.getBoundingClientRect();
-        const nx = (e.clientX - r.left)/r.width * 2 - 1;
-        const ny = (e.clientY - r.top)/r.height * 2 - 1;
-        if (btn.disabled) return;
-        tiltTY = nx*0.35;
-        tiltTX = -ny*0.25;
-      });
-    }
-
-    // Lazy-build on the first real size instead of requiring every call
-    // site to know whether its button is visible yet — this is what lets
-    // every instance mount the same way whether it's sitting in the open
-    // (#panel-back) or inside a display:none modal/panel that hasn't been
-    // opened yet (everything else).
-    ro = new ResizeObserver(()=>{
-      W = btn.clientWidth; H = btn.clientHeight;
-      if (!W || !H) return;
-      if (!built) { build(); return; }
-      needsDraw = true;
-      renderer.setSize(W, H, false);
-      if (fitPillNow) fitPillNow();
-      camera.aspect = W/H;
-      camera.updateProjectionMatrix();
-      group.scale.x = stretchFor(W/H);
-    });
-    ro.observe(btn);
-  }
-  window.mountPlasmaButton = mountPlasmaButton;
-  // Retints an already-mounted button's plasma — the button's own frame()
-  // loop eases the actual uniforms toward these new targets, so this just
-  // records where to ease *to*. Safe to call before the button is visible.
-  window.setPlasmaButtonColor = function(canvasId, midHex, brightHex){
-    const entry = window._plasmaButtonColors[canvasId];
-    if (!entry) return;
-    entry.mid.set(midHex);
-    entry.bright.set(brightHex);
-  };
-
-  // Every .plasma-btn that's static (always in the DOM, just possibly
-  // hidden) mounts once here — the ResizeObserver above takes care of
-  // waiting until it's actually visible. Buttons that get freshly created
-  // via innerHTML (SKILLS yap, OPERATOR instagram) are mounted from the
-  // PLASMA EXPERIENCE closure instead, right after they're injected.
-  document.addEventListener('DOMContentLoaded', () => {
-    // The Directed Works arrows are plain etched icons (no plasma) — see the
-    // .dc-nav rules near their markup — so they don't mount here.
-    // phones: CLOSE in ENTER / SEND's blue; desktop keeps its own tint
-    mountPlasmaButton('yap-modal-close', 'yap-modal-close-canvas', matchMedia('(max-width: 768px)').matches
-      ? { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff } : { stretchDivisor: 1.4 });
-    mountPlasmaButton('orb-tap-btn', 'orb-tap-canvas', { stretchDivisor: 1.4, colorMid: 0x2f6fd0, colorBright: 0xbfe3ff });   // SEND's tint
-  });
-})();
-
-
   // ── Mini Orbs (success state) ──
   (function() {
     function startMiniOrbs() {
@@ -6702,7 +6727,7 @@ document.addEventListener('click', e => {
 <!-- message-popup.js: the hologram Message popup (needs etched.js and THREE) -->
 <script src="message-popup.js?v=20261010b"></script>
 <!-- me-corridor.js: the ME panel's neural corridor (needs THREE) -->
-<script src="me-corridor.js?v=20261010c"></script>
+<script src="me-corridor.js?v=20261010d"></script>
 
 </body>
 </html>

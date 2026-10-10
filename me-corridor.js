@@ -2467,7 +2467,8 @@ function paintChapter(i){
   // the title, cut into the glass like PREV / NEXT (etched.js's letter recipe)
   elName.setAttribute('aria-label', CHAPTERS[i].name);
   elName.textContent = '';
-  drawEtchedWord(elName, CHAPTERS[i].name.toUpperCase(), Math.max(15, Math.min(21, innerWidth*0.017)), 0.16);
+  // phones: 14px, the phone's title size (EXPERIENCE's section titles too)
+  drawEtchedWord(elName, CHAPTERS[i].name.toUpperCase(), innerWidth <= 768 ? 14 : Math.max(15, Math.min(21, innerWidth*0.017)), 0.16);
   elBlurb.textContent = CHAPTERS[i].blurb;
   if (elCounter) elCounter.textContent = pad2(i+1) + ' / ' + pad2(CHAPTERS.length);   // no counter on the site
   ticks.forEach((t,k)=>{
